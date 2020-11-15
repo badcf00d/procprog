@@ -2,7 +2,6 @@ CC = gcc
 EXE = procprog
 SRC_DIR = ./
 OBJ_DIR = ./obj
-INC_DIRS = -Iinclude
 
 SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
@@ -20,7 +19,7 @@ endif
 all: $(EXE)
 
 $(EXE): $(OBJ)
-	@$(CC) $^ $(INC_DIRS) $(LIBS) $(CFLAGS) -o $(EXE)
+	@$(CC) $^ $(LIBS) $(CFLAGS) -o $(EXE)
 	$(info Executable compiled to $(shell realpath --relative-to=$(shell pwd) $@))
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
