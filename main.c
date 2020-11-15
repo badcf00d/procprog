@@ -11,8 +11,8 @@
 
 #define MSEC_TO_NSEC(x) (x * 1000000)
 #define USEC_TO_MSEC(x) (x / 1000)
-static int freeTimer = 0;
-static int timerLength = 4;
+static unsigned int freeTimer = 0;
+static unsigned int timerLength = 10;
 static char spinner = '|';
 
 
@@ -32,6 +32,21 @@ static int countDigits(int n)
         testNum *= 10;
         numDigits++;
     }
+}
+
+
+static int min(int a, int b) 
+{
+    if (a > b)
+        return b;
+    return a;
+}
+
+static int max(int a, int b) 
+{
+    if (a < b)
+        return b;
+    return a;
 }
 
 
@@ -60,8 +75,11 @@ static void printSpinner(void)
 
 static void timerCallback(union sigval timer_data)
 {
-    fprintf(stderr, "\033[s\033[1G[%ds] %c\033[u", freeTimer, spinner);
-    timerLength = countDigits(freeTimer) + 3;
+    unsigned int hours = min((freeTimer / 3600), 99);
+    unsigned int minutes = min((freeTimer / 60) - (hours * 60), 60);
+    unsigned int seconds = min(freeTimer - (minutes * 60), 60);
+
+    fprintf(stderr, "\033[s\033[1G[%02u:%02u:%02u] %c\033[u", hours, minutes, seconds, spinner);
     freeTimer++;
 }
 
@@ -71,7 +89,7 @@ static void readLoop()
     char ch;
     bool newLine = false;
 
-    fprintf(stderr, "\033[%dG", timerLength + 5);
+    fprintf(stderr, "\033[%dG", timerLength + 4);
 
     while(read(STDIN_FILENO, &ch, 1) > 0)
     {
@@ -83,7 +101,7 @@ static void readLoop()
         {
             if (newLine == true)
             {
-                fprintf(stderr, "\033[%dG\033[0K", timerLength + 5);
+                fprintf(stderr, "\033[%dG\033[0K", timerLength + 4);
                 printSpinner();
                 newLine = false;
             }
@@ -123,6 +141,6 @@ int main()
     gettimeofday(&timeAfter, NULL);
     
     timersub(&timeAfter, &timeBefore, &timeDiff);
-    printf("\033[2K\033[1GDone... Took %ld.%03ld seconds\n", timeDiff.tv_sec, USEC_TO_MSEC(timeDiff.tv_usec));
+    fprintf(stderr, "\033[%dG\033[0K Done - %ld.%03ld seconds\n", timerLength + 1, timeDiff.tv_sec, USEC_TO_MSEC(timeDiff.tv_usec));
     return 0;
 }
