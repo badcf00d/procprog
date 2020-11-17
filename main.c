@@ -1,11 +1,16 @@
 #include <stdio.h>
 #include <stdbool.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <limits.h>
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
-#include <limits.h>
+
+/*
+    Useful shell one-liner to test:
+    perl -e '$| = 1; while (1) { for (1..3) { print("$_"); sleep(1); } print "\n"}' | ./procprog
+*/
 
 
 
@@ -69,7 +74,7 @@ static void printSpinner(void)
             break;
     }
 
-    fprintf(stderr, "\033[s\033[%dG\b\b %c  \033[u", timerLength + 3, spinner);
+    fprintf(stderr, "\e[s\e[%dG\b\b %c  \e[u", timerLength + 3, spinner);
 }
 
 
@@ -77,9 +82,9 @@ static void timerCallback(union sigval timer_data)
 {
     unsigned int hours = min((freeTimer / 3600), 99);
     unsigned int minutes = min((freeTimer / 60) - (hours * 60), 60);
-    unsigned int seconds = min(freeTimer - (minutes * 60), 60);
+    unsigned int seconds = min(freeTimer - ((hours * 3600) + (minutes * 60)), 60);
 
-    fprintf(stderr, "\033[s\033[1G[%02u:%02u:%02u] %c\033[u", hours, minutes, seconds, spinner);
+    fprintf(stderr, "\e[s\e[1G[%02u:%02u:%02u] %c\e[u", hours, minutes, seconds, spinner);
     freeTimer++;
 }
 
@@ -89,7 +94,7 @@ static void readLoop()
     char ch;
     bool newLine = false;
 
-    fprintf(stderr, "\033[%dG", timerLength + 4);
+    fprintf(stderr, "\e[%dG", timerLength + 4);
 
     while(read(STDIN_FILENO, &ch, 1) > 0)
     {
@@ -101,7 +106,7 @@ static void readLoop()
         {
             if (newLine == true)
             {
-                fprintf(stderr, "\033[%dG\033[0K", timerLength + 4);
+                fprintf(stderr, "\e[%dG\e[0K", timerLength + 4);
                 printSpinner();
                 newLine = false;
             }
@@ -109,6 +114,12 @@ static void readLoop()
             putc(ch, stderr);
         }
     }
+}
+
+
+void cleanup()
+{
+    fputs("\e[?25h", stderr); // ?25l Hides the cursor (?25h shows it again)
 }
 
 
@@ -130,10 +141,12 @@ int main()
     struct timeval timeDiff;
     timer_t timer;
 
+    atexit(cleanup);
+    signal(SIGINT, cleanup);
     timer_create(CLOCK_MONOTONIC, &timerEvent, &timer);
     timer_settime(timer, 0, &timerPeriod, NULL);
 
-    fputs("\033[?25h", stderr); // Hides the cursor (?25h shows it again)
+    fputs("\e[?25l", stderr); // ?25l Hides the cursor (?25h shows it again)
     printSpinner();
 
     gettimeofday(&timeBefore, NULL);
@@ -141,6 +154,6 @@ int main()
     gettimeofday(&timeAfter, NULL);
     
     timersub(&timeAfter, &timeBefore, &timeDiff);
-    fprintf(stderr, "\033[%dG\033[0K Done - %ld.%03ld seconds\n", timerLength + 1, timeDiff.tv_sec, USEC_TO_MSEC(timeDiff.tv_usec));
+    fprintf(stderr, "\e[%dG\e[0K Done - %ld.%03ld seconds\n", timerLength + 1, timeDiff.tv_sec, USEC_TO_MSEC(timeDiff.tv_usec));
     return 0;
 }
