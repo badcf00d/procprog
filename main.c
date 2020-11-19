@@ -13,11 +13,14 @@
 */
 
 
-
 #define MSEC_TO_NSEC(x) (x * 1000000)
 #define USEC_TO_MSEC(x) (x / 1000)
-static unsigned int freeTimer = 0;
+static unsigned int freeTimer;
+static unsigned int hours;
+static unsigned int minutes;
+static unsigned int seconds;
 static unsigned int timerLength = 10;
+
 static char spinner = '|';
 
 
@@ -141,7 +144,6 @@ int main()
     struct timeval timeDiff;
     timer_t timer;
 
-    atexit(cleanup);
     signal(SIGINT, cleanup);
     timer_create(CLOCK_MONOTONIC, &timerEvent, &timer);
     timer_settime(timer, 0, &timerPeriod, NULL);
@@ -154,6 +156,6 @@ int main()
     gettimeofday(&timeAfter, NULL);
     
     timersub(&timeAfter, &timeBefore, &timeDiff);
-    fprintf(stderr, "\e[%dG\e[0K Done - %ld.%03ld seconds\n", timerLength + 1, timeDiff.tv_sec, USEC_TO_MSEC(timeDiff.tv_usec));
+    fprintf(stderr, "\e[2K\e[1G[%02u:%02u:%02u] Done - %ld.%03lds", hours, minutes, seconds, timeDiff.tv_sec, USEC_TO_MSEC(timeDiff.tv_usec));
     return 0;
 }
