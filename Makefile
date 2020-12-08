@@ -5,7 +5,7 @@ OBJ_DIR = ./obj
 
 SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-LIBS = -lm -lrt
+LIBS = -lm -lrt -lpthread
 CFLAGS = -Wall -Wvla -fverbose-asm
 
 ifeq ($(PREFIX),)

@@ -1,61 +1,31 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdnoreturn.h>
 #include <unistd.h>
 #include <limits.h>
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
+#include <getopt.h>
+#include <errno.h>
+#include <pthread.h>
+
+#include "util.h"
 
 /*
     Useful shell one-liner to test:
-    perl -e '$| = 1; while (1) { for (1..3) { print("$_"); sleep(1); } print "\n"}' | ./procprog
+    ./procprog perl -e '$| = 1; while (1) { for (1..3) { print("$_"); sleep(1); } print "\n"}'
 */
 
-
-#define MSEC_TO_NSEC(x) (x * 1000000)
-#define USEC_TO_MSEC(x) (x / 1000)
 static unsigned int freeTimer;
 static unsigned int hours;
 static unsigned int minutes;
 static unsigned int seconds;
 static unsigned int timerLength = 10;
-
 static char spinner = '|';
 
 
-
-static int countDigits(int n) 
-{
-    unsigned int num = abs(n);
-    unsigned int testNum = 10, numDigits = 1;
-
-    while(1) 
-    {
-        if (num < testNum)
-            return numDigits;
-        if (testNum > INT_MAX / 10)
-            return numDigits + 1;
-
-        testNum *= 10;
-        numDigits++;
-    }
-}
-
-
-static int min(int a, int b) 
-{
-    if (a > b)
-        return b;
-    return a;
-}
-
-static int max(int a, int b) 
-{
-    if (a < b)
-        return b;
-    return a;
-}
 
 
 static void printSpinner(void)
@@ -81,6 +51,8 @@ static void printSpinner(void)
 }
 
 
+
+
 static void timerCallback(union sigval timer_data)
 {
     unsigned int hours = min((freeTimer / 3600), 99);
@@ -92,14 +64,16 @@ static void timerCallback(union sigval timer_data)
 }
 
 
-static void readLoop()
+
+
+static void readLoop(int procStdOut[2])
 {
     char ch;
     bool newLine = false;
 
     fprintf(stderr, "\e[%dG", timerLength + 4);
 
-    while(read(STDIN_FILENO, &ch, 1) > 0)
+    while(read(procStdOut[0], &ch, 1) > 0)
     {
         if (ch == '\n')
         {
@@ -120,13 +94,71 @@ static void readLoop()
 }
 
 
-void cleanup()
+
+static const char** getArgs(int argc, char** argv)
 {
-    fputs("\e[?25h", stderr); // ?25l Hides the cursor (?25h shows it again)
+    int optc;
+    bool append = false;
+    char* outFilename = NULL;
+    FILE* outFile = stderr;
+    static struct option longOpts[] =
+    {
+        {"help", no_argument, NULL, 'h'},
+        {"version", no_argument, NULL, 'V'},
+        {"append", no_argument, NULL, 'a'},
+        {"output-file", required_argument, NULL, 'o'},
+        {NULL, no_argument, NULL, 0}
+    };
+    
+    
+    while ((optc = getopt_long(argc, argv, "+aho:V", longOpts, (int*) 0)) != EOF)
+    {
+        switch (optc)
+        {
+        case 'h':
+            showUsage(EXIT_SUCCESS);        
+        case 'V':
+            showVersion(EXIT_SUCCESS);        
+        case 'a':
+            append = true;
+            break;
+        case 'o':
+            outFilename = optarg;
+            break;
+        default:
+            showUsage(EXIT_FAILURE);
+        }
+    }
+
+    if (optind == argc)
+    {
+        showError(EXIT_FAILURE, true, "Can't find a program to run, optind = %d\n", optind);
+    }
+
+    if (outFilename)
+    {
+        if (append)
+        {
+            outFile = fopen(outFilename, "a");
+        }
+        else
+        {
+            outFile = fopen(outFilename, "w");
+        }
+
+        if (outFile == NULL)
+        {
+            showError(EXIT_FAILURE, false, "Couldn't open file: %s\n", outFilename);
+        }
+    }
+
+    return (const char **)&argv[optind];
 }
 
 
-int main()
+
+
+int main(int argc, char **argv)
 {
     struct sigevent timerEvent = {
         .sigev_notify = SIGEV_THREAD,
@@ -143,19 +175,53 @@ int main()
     struct timeval timeAfter;
     struct timeval timeDiff;
     timer_t timer;
+    pid_t pid;
+    int procStdOut[2];
+    int procStdErr[2];
+    const char** commandLine;
 
-    signal(SIGINT, cleanup);
-    timer_create(CLOCK_MONOTONIC, &timerEvent, &timer);
-    timer_settime(timer, 0, &timerPeriod, NULL);
+    setProgramName(argv[0]);
+    commandLine = getArgs(argc, argv);
+    pipe(procStdOut);
+    pipe(procStdErr);
 
-    fputs("\e[?25l", stderr); // ?25l Hides the cursor (?25h shows it again)
-    printSpinner();
+    pid = fork();
+    if (pid < 0)
+    {
+        showError(EXIT_FAILURE, false, "fork failed\n");
+    }
+    else if (pid == 0)
+    {
+        close(procStdOut[0]);    // close reading end in the child
+        close(procStdErr[0]);    // close reading end in the child
 
-    gettimeofday(&timeBefore, NULL);
-    readLoop();
-    gettimeofday(&timeAfter, NULL);
-    
-    timersub(&timeAfter, &timeBefore, &timeDiff);
-    fprintf(stderr, "\e[2K\e[1G[%02u:%02u:%02u] Done - %ld.%03lds", hours, minutes, seconds, timeDiff.tv_sec, USEC_TO_MSEC(timeDiff.tv_usec));
+        dup2(procStdOut[1], STDOUT_FILENO);  // send stdout to the pipe
+        dup2(procStdErr[1], STDERR_FILENO);  // send stderr to the pipe
+
+        close(procStdOut[1]);    // this descriptor is no longer needed
+        close(procStdErr[1]);    // this descriptor is no longer needed
+
+        const char* command = commandLine[0];
+
+        int status_code = execvp(command, (char *const *)commandLine);
+        showError(EXIT_FAILURE, false, "cannot run %s, execvp returned %d\n", command, status_code);
+        return 1;
+    }
+    else
+    {
+        close(procStdOut[1]);  // close the write end of the pipe in the parent
+        close(procStdErr[1]);  // close the write end of the pipe in the parent
+
+        timer_create(CLOCK_MONOTONIC, &timerEvent, &timer);
+        timer_settime(timer, 0, &timerPeriod, NULL);
+        printSpinner();
+
+        gettimeofday(&timeBefore, NULL);
+        readLoop(procStdOut);
+        gettimeofday(&timeAfter, NULL);
+        timersub(&timeAfter, &timeBefore, &timeDiff);
+        fprintf(stderr, "\e[2K\e[1G[%02u:%02u:%02u] Done - %ld.%03lds\n", hours, minutes, seconds, timeDiff.tv_sec, USEC_TO_MSEC(timeDiff.tv_usec));
+    }
+
     return 0;
 }
