@@ -6,8 +6,14 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <pthread.h>
-#include <sys/prctl.h>
 #include <limits.h>
+#if __linux__
+#include <sys/prctl.h>
+#endif
+#if __APPLE__
+#include <Availability.h>
+#endif
+
 #include "util.h"
 
 
@@ -54,11 +60,15 @@ int setProgramName(char* name)
 
 #if __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 12
 	retVal = pthread_setname_np(pthread_self(), nameBuf);
-#else
+#elif  __linux__
 	if(prctl(PR_SET_NAME, (unsigned long)nameBuf, 0, 0, 0)) 
     {
 		retVal = errno;
 	}
+#elif __MAC_10_6
+	retVal = pthread_setname_np(nameBuf);
+#else
+    #error "Missing a method to set program name"
 #endif
 
     return retVal;
@@ -71,7 +81,7 @@ noreturn void showUsage(int status)
     puts("Run COMMAND, showing just the most recently output line\n");
 
     puts("-h, --help            display this help and exit");
-    puts("-V, --version         output version information and exit");
+    puts("-v, --version         output version information and exit");
     puts("-a, --append          with -o FILE, append instead of overwriting");
     puts("-o, --output=FILE     write to FILE instead of stderr");
 
@@ -82,7 +92,7 @@ noreturn void showUsage(int status)
 
 noreturn void showVersion(int status)
 {
-    printf("%s %s (built %s)\nWritten by %s, Copyright %s\n", 
+    printf("%s %s (Built %s)\nWritten by %s, Copyright %s\n", 
                 PROGRAM_NAME, VERSION, __DATE__, AUTHORS, BUILD_YEAR);
     
     exit(status);

@@ -1,6 +1,4 @@
 
-#define MSEC_TO_NSEC(x) (x * 1000000)
-#define USEC_TO_MSEC(x) (x / 1000)
 #define AUTHORS "Peter Frost"
 #define PROGRAM_NAME "procprog"
 #define VERSION "0.1"
