@@ -21,13 +21,10 @@
     ./procprog perl -e '$| = 1; while (1) { for (1..3) { print("$_"); sleep(1); } print "\n"}'
 */
 
-static unsigned int freeTimer;
-static unsigned int hours;
-static unsigned int minutes;
-static unsigned int seconds;
-static unsigned int timerLength = 10;
 #define DEBUG_FILE "debug.log"
+
 static char spinner = '|';
+static struct timespec procStartTime;
 static FILE* debugFile;
 static sem_t mutex;
 
@@ -58,16 +55,24 @@ static void printSpinner(void)
 
 
 
-
-static void timerCallback(union sigval timer_data)
+// There's no void in the paramaters here because Linux forces
+// this callback to take an input, although we don't care about it
+static void tickCallback()
 {
-    unsigned int hours = min((freeTimer / 3600), 99);
-    unsigned int minutes = min((freeTimer / 60) - (hours * 60), 60);
-    unsigned int seconds = min(freeTimer - ((hours * 3600) + (minutes * 60)), 60);
+    struct timespec timeDiff;
+    struct timespec currentTime;
+
+    clock_gettime(CLOCK_MONOTONIC, &currentTime);
+    timespecsub(&currentTime, &procStartTime, &timeDiff);
+
     sem_wait(&mutex);
 
-    fprintf(stderr, "\e[s\e[1G[%02u:%02u:%02u] %c\e[u", hours, minutes, seconds, spinner);
-    freeTimer++;
+    fprintf(stderr, "\e[1G[%02ld:%02ld:%02ld] %c", 
+                        (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
+                        (timeDiff.tv_sec % 3600) / 60, 
+                        (timeDiff.tv_sec % 60), 
+                        spinner);
+
     sem_post(&mutex);
 }
 
@@ -179,6 +184,8 @@ int main(int argc, char **argv)
     setvbuf(debugFile, NULL, _IONBF, 0);
     fprintf(debugFile, "Starting...");
 
+    clock_gettime(CLOCK_MONOTONIC, &procStartTime);
+
     pid = fork();
     if (pid < 0)
     {
@@ -209,11 +216,17 @@ int main(int argc, char **argv)
         portable_tick_create(tickCallback);
         printSpinner();
 
-        gettimeofday(&timeBefore, NULL);
         readLoop(procStdOut);
-        gettimeofday(&timeAfter, NULL);
-        timersub(&timeAfter, &timeBefore, &timeDiff);
-        fprintf(stderr, "\e[2K\e[1G[%02u:%02u:%02u] Done - %ld.%03lds\n", hours, minutes, seconds, timeDiff.tv_sec, USEC_TO_MSEC(timeDiff.tv_usec));
+
+        clock_gettime(CLOCK_MONOTONIC, &procEndTime);
+        timespecsub(&procEndTime, &procStartTime, &timeDiff);
+
+        fprintf(stderr, "\e[2K\e[1G[%02ld:%02ld:%02ld] Done - %ld.%03lds\n", 
+                        (timeDiff.tv_sec % 3600) / 60, 
+                        timeDiff.tv_sec % 60, 
+                        timeDiff.tv_sec, 
+                        timeDiff.tv_sec, 
+                        NSEC_TO_MSEC(timeDiff.tv_nsec));
     }
 
     sem_destroy(&mutex);
