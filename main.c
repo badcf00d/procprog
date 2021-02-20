@@ -4,12 +4,14 @@
 #include <stdnoreturn.h>
 #include <unistd.h>
 #include <limits.h>
-#include <signal.h>
 #include <time.h>
 #include <sys/time.h>
 #include <getopt.h>
 #include <errno.h>
 #include <pthread.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <semaphore.h>
 
 #include "timer.h"
 #include "util.h"
@@ -25,6 +27,7 @@ static unsigned int minutes;
 static unsigned int seconds;
 static unsigned int timerLength = 10;
 static char spinner = '|';
+static sem_t mutex;
 
 
 
@@ -59,9 +62,11 @@ static void timerCallback(union sigval timer_data)
     unsigned int hours = min((freeTimer / 3600), 99);
     unsigned int minutes = min((freeTimer / 60) - (hours * 60), 60);
     unsigned int seconds = min(freeTimer - ((hours * 3600) + (minutes * 60)), 60);
+    sem_wait(&mutex);
 
     fprintf(stderr, "\e[s\e[1G[%02u:%02u:%02u] %c\e[u", hours, minutes, seconds, spinner);
     freeTimer++;
+    sem_post(&mutex);
 }
 
 
@@ -82,6 +87,8 @@ static void readLoop(int procStdOut[2])
         }
         else
         {
+            sem_wait(&mutex);
+
             if (newLine == true)
             {
                 fprintf(stderr, "\e[%dG\e[0K", timerLength + 4);
@@ -90,6 +97,7 @@ static void readLoop(int procStdOut[2])
             }
 
             putc(ch, stderr);
+            sem_post(&mutex);
         }
     }
 }
@@ -171,6 +179,7 @@ int main(int argc, char **argv)
     commandLine = getArgs(argc, argv);
     pipe(procStdOut);
     pipe(procStdErr);
+    sem_init(&mutex, 0, 1);
 
     pid = fork();
     if (pid < 0)
@@ -209,5 +218,6 @@ int main(int argc, char **argv)
         fprintf(stderr, "\e[2K\e[1G[%02u:%02u:%02u] Done - %ld.%03lds\n", hours, minutes, seconds, timeDiff.tv_sec, USEC_TO_MSEC(timeDiff.tv_usec));
     }
 
+    sem_destroy(&mutex);
     return 0;
 }
