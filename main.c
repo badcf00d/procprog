@@ -19,21 +19,69 @@
 /*
     Useful shell one-liner to test:
     ./procprog perl -e '$| = 1; while (1) { for (1..3) { print("$_"); sleep(1); } print "\n"}'
+    ./procprog perl -e '$| = 1; while (1) { for (1..9) { print("$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_"); sleep(1); } print "\n"}'
 */
 
+#define TIMER_LENGTH 10
+#define SPINNER_POS (TIMER_LENGTH + 2)
+#define OUTPUT_POS (SPINNER_POS + 2)
 #define DEBUG_FILE "debug.log"
 
 static char spinner = '|';
 static struct timespec procStartTime;
+static unsigned int numCharacters = OUTPUT_POS;
+static struct winsize termSize;
 static FILE* debugFile;
 static sem_t mutex;
+
+static void returnToStartLine(bool clearText)
+{
+    unsigned int numLines;
+
+    ioctl(0, TIOCGWINSZ, &termSize);
+    numLines = numCharacters / termSize.ws_col;
+
+    fprintf(debugFile, "width: %d, numChar: %d, numLines = %d\n", termSize.ws_col, numCharacters, numLines);
+
+    for (unsigned int i = 0; i < numLines; i++)
+    {
+        if (clearText)
+        {
+            fprintf(stderr, "\e[2K\e[1A");
+        }
+        else
+        {
+            fprintf(stderr, "\e[1A");
+        }
+    }
+}
+
+
+static void returnToContentPos(void)
+{
+    unsigned int numLines, numCharIn;
+
+    ioctl(0, TIOCGWINSZ, &termSize);
+    numLines = numCharacters / termSize.ws_col;
+    numCharIn = numCharacters - (termSize.ws_col * numLines);
+
+    fprintf(debugFile, "numLines = %d, numCharIn = %d\n", numLines, numCharIn);
+
+    if (numLines)
+    {
+        fprintf(stderr, "\e[%uB\e[%uG", numLines, numCharIn);
+    }
+    else
+    {
+        fprintf(stderr, "\e[%uG", numCharIn);
+    }
+}
 
 
 
 
 static void printSpinner(void)
 {
-
     switch (spinner)
     {
         case '/':
@@ -50,7 +98,8 @@ static void printSpinner(void)
             break;
     }
 
-    fprintf(stderr, "\e[s\e[%dG\b\b %c  \e[u", timerLength + 3, spinner);
+    //fprintf(stderr, "%c ", spinner);
+    fprintf(stderr, "\e[%uG\e[0K%c ", SPINNER_POS, spinner);
 }
 
 
@@ -67,11 +116,13 @@ static void tickCallback()
 
     sem_wait(&mutex);
 
+    returnToStartLine(false);
     fprintf(stderr, "\e[1G[%02ld:%02ld:%02ld] %c", 
                         (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
                         (timeDiff.tv_sec % 3600) / 60, 
                         (timeDiff.tv_sec % 60), 
                         spinner);
+    returnToContentPos();
 
     sem_post(&mutex);
 }
@@ -79,17 +130,23 @@ static void tickCallback()
 
 
 
+
+
 static void readLoop(int procStdOut[2])
 {
-    char ch;
+    char inputChar;
     bool newLine = false;
 
-    fprintf(stderr, "\e[%dG", timerLength + 4);
+    // Set the cursor to out starting position
+    fprintf(stderr, "\e[%dG", OUTPUT_POS);
 
-    while(read(procStdOut[0], &ch, 1) > 0)
+    while (read(procStdOut[0], &inputChar, 1) > 0)
     {
-        if (ch == '\n')
+        if (inputChar == '\n')
         {
+            // We don't want to erase the line immediately
+            // after the new line character, as this usually
+            // means lines get deleted as soon as they are output.
             newLine = true;
         }
         else
@@ -98,12 +155,15 @@ static void readLoop(int procStdOut[2])
 
             if (newLine == true)
             {
-                fprintf(stderr, "\e[%dG\e[0K", timerLength + 4);
+                returnToStartLine(true);
                 printSpinner();
                 newLine = false;
+                numCharacters = OUTPUT_POS;
             }
 
-            putc(ch, stderr);
+            putc(inputChar, stderr);
+            numCharacters++;
+
             sem_post(&mutex);
         }
     }
@@ -171,9 +231,10 @@ int main(int argc, char **argv)
 {
     struct timespec procEndTime;
     struct timespec timeDiff;
+    const char** commandLine;
     int procStdOut[2];
     int procStdErr[2];
-    const char** commandLine;
+    pid_t pid;
 
     setProgramName(argv[0]);
     commandLine = getArgs(argc, argv);
