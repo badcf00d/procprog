@@ -26,7 +26,9 @@ static unsigned int hours;
 static unsigned int minutes;
 static unsigned int seconds;
 static unsigned int timerLength = 10;
+#define DEBUG_FILE "debug.log"
 static char spinner = '|';
+static FILE* debugFile;
 static sem_t mutex;
 
 
@@ -180,6 +182,9 @@ int main(int argc, char **argv)
     pipe(procStdOut);
     pipe(procStdErr);
     sem_init(&mutex, 0, 1);
+    debugFile = fopen(DEBUG_FILE, "w");
+    setvbuf(debugFile, NULL, _IONBF, 0);
+    fprintf(debugFile, "Starting...");
 
     pid = fork();
     if (pid < 0)
@@ -219,5 +224,7 @@ int main(int argc, char **argv)
     }
 
     sem_destroy(&mutex);
+    fclose(debugFile);
+
     return 0;
 }
