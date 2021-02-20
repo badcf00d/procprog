@@ -122,13 +122,13 @@ static const char** getArgs(int argc, char** argv)
     };
     
     
-    while ((optc = getopt_long(argc, argv, "+aho:V", longOpts, (int*) 0)) != EOF)
+    while ((optc = getopt_long(argc, argv, "+aho:v", longOpts, (int*) 0)) != EOF)
     {
         switch (optc)
         {
         case 'h':
             showUsage(EXIT_SUCCESS);        
-        case 'V':
+        case 'v':
             showVersion(EXIT_SUCCESS);        
         case 'a':
             append = true;
@@ -143,19 +143,12 @@ static const char** getArgs(int argc, char** argv)
 
     if (optind == argc)
     {
-        showError(EXIT_FAILURE, true, "Can't find a program to run, optind = %d\n", optind);
+        showError(EXIT_FAILURE, true, "Can't find a program to run, optind = %d\n\n", optind);
     }
 
     if (outFilename)
     {
-        if (append)
-        {
-            outFile = fopen(outFilename, "a");
-        }
-        else
-        {
-            outFile = fopen(outFilename, "w");
-        }
+        outFile = fopen(outFilename, (append) ? "a" : "w");
 
         if (outFile == NULL)
         {
