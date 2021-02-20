@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <pthread.h>
 
+#include "timer.h"
 #include "util.h"
 
 /*
@@ -160,22 +161,8 @@ static const char** getArgs(int argc, char** argv)
 
 int main(int argc, char **argv)
 {
-    struct sigevent timerEvent = {
-        .sigev_notify = SIGEV_THREAD,
-        .sigev_notify_function = timerCallback,
-        .sigev_notify_attributes = NULL
-    };
-    struct itimerspec timerPeriod = {
-        .it_value.tv_sec = 0,
-        .it_value.tv_nsec = 1, // Has the effect of firing essentially immediately
-        .it_interval.tv_sec = 1, 
-        .it_interval.tv_nsec = 0
-    };
-    struct timeval timeBefore;
-    struct timeval timeAfter;
-    struct timeval timeDiff;
-    timer_t timer;
-    pid_t pid;
+    struct timespec procEndTime;
+    struct timespec timeDiff;
     int procStdOut[2];
     int procStdErr[2];
     const char** commandLine;
@@ -212,8 +199,7 @@ int main(int argc, char **argv)
         close(procStdOut[1]);  // close the write end of the pipe in the parent
         close(procStdErr[1]);  // close the write end of the pipe in the parent
 
-        timer_create(CLOCK_MONOTONIC, &timerEvent, &timer);
-        timer_settime(timer, 0, &timerPeriod, NULL);
+        portable_tick_create(tickCallback);
         printSpinner();
 
         gettimeofday(&timeBefore, NULL);
