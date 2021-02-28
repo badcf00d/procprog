@@ -38,7 +38,7 @@ static void returnToStartLine(bool clearText)
     unsigned int numLines;
 
     ioctl(0, TIOCGWINSZ, &termSize);
-    numLines = numCharacters / termSize.ws_col;
+    numLines = (numCharacters - 1) / (termSize.ws_col + 1);
 
     fprintf(debugFile, "width: %d, numChar: %d, numLines = %d\n", termSize.ws_col, numCharacters, numLines);
 
@@ -61,7 +61,7 @@ static void returnToContentPos(void)
     unsigned int numLines, numCharIn;
 
     ioctl(0, TIOCGWINSZ, &termSize);
-    numLines = numCharacters / termSize.ws_col;
+    numLines = (numCharacters - 1) / (termSize.ws_col + 1);
     numCharIn = numCharacters - (termSize.ws_col * numLines);
 
     fprintf(debugFile, "numLines = %d, numCharIn = %d\n", numLines, numCharIn);
