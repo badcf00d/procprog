@@ -18,8 +18,8 @@
 
 /*
     Useful shell one-liner to test:
-    ./procprog perl -e '$| = 1; while (1) { for (1..3) { print("$_"); sleep(1); } print "\n"}'
-    ./procprog perl -e '$| = 1; while (1) { for (1..9) { print("$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_$_"); sleep(1); } print "\n"}'
+    make && ./procprog perl -e '$| = 1; while (1) { for (1..3) { print("$_"); sleep(1); } print "\n"}'
+    make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,"); sleep(1); } print "\n"}'
 */
 
 #define TIMER_LENGTH 10
@@ -161,6 +161,7 @@ static void readLoop(int procStdOut[2])
             }
 
             putc(inputChar, stderr);
+            putc(inputChar, debugFile);
             numCharacters++;
 
             sem_post(&mutex);
