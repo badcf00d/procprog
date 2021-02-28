@@ -27,7 +27,6 @@
 #define OUTPUT_POS (SPINNER_POS + 2)
 #define DEBUG_FILE "debug.log"
 
-static char spinner = '|';
 static struct timespec procStartTime;
 static unsigned int numCharacters = OUTPUT_POS;
 static struct winsize termSize;
@@ -82,6 +81,8 @@ static void returnToContentPos(void)
 
 static void printSpinner(void)
 {
+    static char spinner = '|';
+
     switch (spinner)
     {
         case '/':
@@ -98,7 +99,6 @@ static void printSpinner(void)
             break;
     }
 
-    //fprintf(stderr, "%c ", spinner);
     fprintf(stderr, "\e[%uG\e[0K%c ", SPINNER_POS, spinner);
 }
 
@@ -117,11 +117,10 @@ static void tickCallback()
     sem_wait(&mutex);
 
     returnToStartLine(false);
-    fprintf(stderr, "\e[1G[%02ld:%02ld:%02ld] %c", 
+    fprintf(stderr, "\e[1G[%02ld:%02ld:%02ld]", 
                         (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
                         (timeDiff.tv_sec % 3600) / 60, 
-                        (timeDiff.tv_sec % 60), 
-                        spinner);
+                        (timeDiff.tv_sec % 60));
     returnToContentPos();
 
     sem_post(&mutex);
