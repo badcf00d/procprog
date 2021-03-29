@@ -12,6 +12,7 @@
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <semaphore.h>
+#include <signal.h>
 
 #include "timer.h"
 #include "util.h"
@@ -37,7 +38,6 @@ static void returnToStartLine(bool clearText)
 {
     unsigned int numLines;
 
-    ioctl(0, TIOCGWINSZ, &termSize);
     numLines = (numCharacters - 1) / (termSize.ws_col + 1);
 
     fprintf(debugFile, "width: %d, numChar: %d, numLines = %d\n", termSize.ws_col, numCharacters, numLines);
@@ -60,7 +60,6 @@ static void returnToContentPos(void)
 {
     unsigned int numLines, numCharIn;
 
-    ioctl(0, TIOCGWINSZ, &termSize);
     numLines = (numCharacters - 1) / (termSize.ws_col + 1);
     numCharIn = numCharacters - (termSize.ws_col * numLines);
 
@@ -226,6 +225,32 @@ static const char** getArgs(int argc, char** argv)
 
 
 
+static void sigintHandler(int sigNum) 
+{
+    struct timespec timeDiff;
+    struct timespec procEndTime;
+    (void)sigNum;
+
+    fclose(debugFile);
+
+    clock_gettime(CLOCK_MONOTONIC, &procEndTime);
+    timespecsub(&procEndTime, &procStartTime, &timeDiff);
+
+    tidyStats();
+    fprintf(stderr, "\n(%s) SIGINT after %ld.%03lds\n",
+                        childProcessName,
+                        timeDiff.tv_sec, 
+                        NSEC_TO_MSEC(timeDiff.tv_nsec));
+
+    exit(EXIT_SUCCESS);
+}
+
+
+static void sigwinchHandler(int sig)
+{
+    ioctl(0, TIOCGWINSZ, &termSize);
+    //fprintf(debugFile, "SIGWINCH raised, window size: %d rows / %d columns\n", termSize.ws_row, termSize.ws_col);
+} 
 
 int main(int argc, char **argv)
 {
@@ -235,6 +260,8 @@ int main(int argc, char **argv)
     int procStdOut[2];
     int procStdErr[2];
     pid_t pid;
+    struct sigaction intCatch;
+    struct sigaction winchCatch;
 
     setProgramName(argv[0]);
     commandLine = getArgs(argc, argv);
@@ -245,7 +272,20 @@ int main(int argc, char **argv)
     setvbuf(debugFile, NULL, _IONBF, 0);
     fprintf(debugFile, "Starting...");
 
+    ioctl(0, TIOCGWINSZ, &termSize);
     clock_gettime(CLOCK_MONOTONIC, &procStartTime);
+
+    sigemptyset(&intCatch.sa_mask);
+    intCatch.sa_flags = 0;
+    intCatch.sa_handler = sigintHandler;
+    if (sigaction(SIGINT, &intCatch, NULL) < 0)
+        showError(EXIT_FAILURE, false, "sigaction for SIGINT failed\n");
+
+    sigemptyset(&winchCatch.sa_mask);
+    winchCatch.sa_flags = SA_RESTART;
+    winchCatch.sa_handler = sigwinchHandler;
+    if (sigaction(SIGWINCH, &winchCatch, NULL) < 0)
+        showError(EXIT_FAILURE, false, "sigaction for SIGWINCH failed\n");
 
     pid = fork();
     if (pid < 0)
