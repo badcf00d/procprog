@@ -19,8 +19,9 @@
 
 /*
     Useful shell one-liner to test:
-    make && ./procprog perl -e '$| = 1; while (1) { for (1..3) { print("$_"); sleep(1); } print "\n"}'
-    make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,"); sleep(1); } print "\n"}'
+    make && ./procprog perl -e '$| = 1; sleep(3); while (1) { for (1..3) { print("$_"); sleep(1); } print "\n"}'
+    make && ./procprog perl -e '$| = 1; for (1..3) { for (1..3) { print("$_"); sleep(1); } print "\n"}'
+    make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,$_,$_,$_,$_,"); sleep(1); } print "\n"}'
 */
 
 #define TIMER_LENGTH 10
@@ -29,50 +30,41 @@
 #define DEBUG_FILE "debug.log"
 
 static struct timespec procStartTime;
-static unsigned int numCharacters = OUTPUT_POS;
-static struct winsize termSize;
+static unsigned int numCharacters = 0;
+static volatile struct winsize termSize;
 static FILE* debugFile;
 static sem_t mutex;
+static const char* childProcessName;
+static char spinner = '|';
+
+
 
 static void returnToStartLine(bool clearText)
 {
-    unsigned int numLines;
-
-    numLines = (numCharacters - 1) / (termSize.ws_col + 1);
-
-    fprintf(debugFile, "width: %d, numChar: %d, numLines = %d\n", termSize.ws_col, numCharacters, numLines);
+    unsigned int numLines = numCharacters / (termSize.ws_col + 1);
+    fprintf(debugFile, "width: %d, x: %d, y: %d numChar: %d, numLines = %d\n", termSize.ws_col, termSize.ws_xpixel, termSize.ws_ypixel, numCharacters, numLines);
 
     for (unsigned int i = 0; i < numLines; i++)
     {
-        if (clearText)
-        {
-            fprintf(stderr, "\e[2K\e[1A");
-        }
-        else
-        {
-            fprintf(stderr, "\e[1A");
-        }
+        fprintf(stderr, "%s\e[1A", (clearText) ? "\e[2K" : "");
     }
+
+    fprintf(stderr, "\e[1G%s", (clearText) ? "\e[2K" : "");
 }
 
 
-static void returnToContentPos(void)
+static void gotoStatLine(void)
 {
-    unsigned int numLines, numCharIn;
+    // TODO: Slightly dirty hack to move to bottom of terminal
+    fputs("\e[9999;1H", stderr);
+}
 
-    numLines = (numCharacters - 1) / (termSize.ws_col + 1);
-    numCharIn = numCharacters - (termSize.ws_col * numLines);
 
-    fprintf(debugFile, "numLines = %d, numCharIn = %d\n", numLines, numCharIn);
-
-    if (numLines)
-    {
-        fprintf(stderr, "\e[%uB\e[%uG", numLines, numCharIn);
-    }
-    else
-    {
-        fprintf(stderr, "\e[%uG", numCharIn);
-    }
+static void tidyStats(void)
+{
+    fputs("\e[s", stderr);
+    gotoStatLine();
+    fputs("\e[2K\e[u", stderr);
 }
 
 
@@ -80,8 +72,6 @@ static void returnToContentPos(void)
 
 static void printSpinner(void)
 {
-    static char spinner = '|';
-
     switch (spinner)
     {
         case '/':
@@ -98,7 +88,31 @@ static void printSpinner(void)
             break;
     }
 
-    fprintf(stderr, "\e[%uG\e[0K%c ", SPINNER_POS, spinner);
+    fprintf(stderr, "\e[s");
+    gotoStatLine();
+    fprintf(stderr, "\e[%uG%c\e[u", SPINNER_POS, spinner);
+}
+
+
+
+static void printStats(bool clearLine)
+{
+    struct timespec timeDiff;
+    struct timespec currentTime;
+
+    clock_gettime(CLOCK_MONOTONIC, &currentTime);
+    timespecsub(&currentTime, &procStartTime, &timeDiff);
+
+    if (clearLine)
+        fputs("\n\e[K\n\e[A", stderr);
+
+    fputs("\e[s", stderr);
+    gotoStatLine();
+    fprintf(stderr, "\e[1G[%02ld:%02ld:%02ld] %c\e[u", 
+                        (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
+                        (timeDiff.tv_sec % 3600) / 60, 
+                        (timeDiff.tv_sec % 60),
+                        spinner);
 }
 
 
@@ -107,21 +121,8 @@ static void printSpinner(void)
 // this callback to take an input, although we don't care about it
 static void tickCallback()
 {
-    struct timespec timeDiff;
-    struct timespec currentTime;
-
-    clock_gettime(CLOCK_MONOTONIC, &currentTime);
-    timespecsub(&currentTime, &procStartTime, &timeDiff);
-
     sem_wait(&mutex);
-
-    returnToStartLine(false);
-    fprintf(stderr, "\e[1G[%02ld:%02ld:%02ld]", 
-                        (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
-                        (timeDiff.tv_sec % 3600) / 60, 
-                        (timeDiff.tv_sec % 60));
-    returnToContentPos();
-
+    printStats(false);
     sem_post(&mutex);
 }
 
@@ -135,8 +136,11 @@ static void readLoop(int procStdOut[2])
     char inputChar;
     bool newLine = false;
 
-    // Set the cursor to out starting position
-    fprintf(stderr, "\e[%dG", OUTPUT_POS);
+    // Set the cursor to out starting position, and print spinner
+    sem_wait(&mutex);
+    fprintf(stderr, "\n\e[1A");
+    printSpinner();
+    sem_post(&mutex);
 
     while (read(procStdOut[0], &inputChar, 1) > 0)
     {
@@ -156,11 +160,24 @@ static void readLoop(int procStdOut[2])
                 returnToStartLine(true);
                 printSpinner();
                 newLine = false;
-                numCharacters = OUTPUT_POS;
+                numCharacters = 0;
+            }
+            
+            if (numCharacters > termSize.ws_col)
+            {
+                if ((numCharacters % termSize.ws_col) == 0)
+                {
+                    printStats(true);
+                }
+            }
+            else if (numCharacters == termSize.ws_col)
+            {
+                printStats(true);
             }
 
             putc(inputChar, stderr);
             putc(inputChar, debugFile);
+            fprintf(debugFile, "   %d   \n", (numCharacters % termSize.ws_col));
             numCharacters++;
 
             sem_post(&mutex);
@@ -265,6 +282,7 @@ int main(int argc, char **argv)
 
     setProgramName(argv[0]);
     commandLine = getArgs(argc, argv);
+    childProcessName = commandLine[0];
     pipe(procStdOut);
     pipe(procStdErr);
     sem_init(&mutex, 0, 1);
@@ -315,17 +333,15 @@ int main(int argc, char **argv)
         close(procStdErr[1]);  // close the write end of the pipe in the parent
 
         portable_tick_create(tickCallback);
-        printSpinner();
 
         readLoop(procStdOut);
 
         clock_gettime(CLOCK_MONOTONIC, &procEndTime);
         timespecsub(&procEndTime, &procStartTime, &timeDiff);
 
-        fprintf(stderr, "\e[2K\e[1G[%02ld:%02ld:%02ld] Done - %ld.%03lds\n", 
-                        (timeDiff.tv_sec % 3600) / 60, 
-                        timeDiff.tv_sec % 60, 
-                        timeDiff.tv_sec, 
+        tidyStats();
+        fprintf(stderr, "\e[1G\e[2K(%s) finished in %ld.%03lds\n",
+                        childProcessName,
                         timeDiff.tv_sec, 
                         NSEC_TO_MSEC(timeDiff.tv_nsec));
     }
