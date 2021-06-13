@@ -7,11 +7,14 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <limits.h>
+#include <string.h>
 #if __linux__
 #include <sys/prctl.h>
 #endif
 #if __APPLE__
 #include <Availability.h>
+#include <sys/sysctl.h>
+#include <mach/mach.h>
 #endif
 
 #include "util.h"
@@ -116,6 +119,77 @@ noreturn void showError(int status, bool shouldShowUsage, const char* format, ..
     else
     {
         exit(status);
+    }
+}
+
+
+
+bool getCPUUsage(float* usage)
+{
+#ifdef __APPLE__
+    mach_msg_type_number_t count;
+    host_cpu_load_info_data_t r_load;
+    struct cpuStat newReading;
+    static struct cpuStat oldReading;
+
+    count = HOST_CPU_LOAD_INFO_COUNT;
+    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t *)&r_load, &count)) 
+    {
+        return false;
+    }
+
+    newReading.tBusy = r_load.cpu_ticks[CPU_STATE_SYSTEM] + r_load.cpu_ticks[CPU_STATE_USER] + r_load.cpu_ticks[CPU_STATE_NICE];
+    newReading.tIdle = r_load.cpu_ticks[CPU_STATE_IDLE];
+#elif __linux__
+    FILE *fp;
+    char* retVal;
+    char statLine[256]; // Theoretically this could be up to ~220 characters
+    struct procStat statBuffer;
+    struct cpuStat newReading;
+    static struct cpuStat oldReading;
+
+    fp = fopen("/proc/stat", "r");
+    if (fp == NULL)
+    {
+        return false;
+    }
+
+    retVal = fgets(statLine, sizeof(statLine), fp);
+    fclose(fp);
+    if ((retVal == NULL) || (statLine[0] != 'c'))
+    {
+        return false;
+    }
+
+    sscanf(statLine, "cpu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu", &(statBuffer.tUser), 
+        &(statBuffer.tNice), &(statBuffer.tSystem), &(statBuffer.tIdle), &(statBuffer.tIoWait), 
+        &(statBuffer.tIrq), &(statBuffer.tSoftIrq), &(statBuffer.tSteal), &(statBuffer.tGuest),
+        &(statBuffer.tGuestNice));
+    
+    newReading.tBusy = statBuffer.tUser + statBuffer.tNice + statBuffer.tSystem + statBuffer.tIrq + 
+        statBuffer.tSoftIrq + statBuffer.tSteal + statBuffer.tGuest + statBuffer.tGuestNice;
+    newReading.tIdle = statBuffer.tIdle + statBuffer.tIoWait;
+#else
+    #error "Don't have a CPU usage implemenatation for this OS"
+#endif
+
+    if ((newReading.tBusy + newReading.tIdle) == 0)
+    {
+        return false;
+    }
+    if ((oldReading.tBusy + oldReading.tIdle) == 0)
+    {
+        memcpy(&oldReading, &newReading, sizeof(oldReading));
+        return false;
+    }
+    else
+    {
+        unsigned long long intervalTime = (newReading.tBusy + newReading.tIdle) - (oldReading.tBusy + oldReading.tIdle);
+        unsigned long long idleTime = newReading.tIdle - oldReading.tIdle;
+        *usage = (((float)intervalTime - idleTime) / intervalTime) * 100;
+
+        memcpy(&oldReading, &newReading, sizeof(oldReading));
+        return true;
     }
 }
 

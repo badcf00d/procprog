@@ -33,7 +33,7 @@ static struct timespec procStartTime;
 static unsigned int numCharacters = 0;
 static volatile struct winsize termSize;
 static FILE* debugFile;
-static sem_t mutex;
+static sem_t outputMutex;
 static const char* childProcessName;
 static char spinner = '|';
 
@@ -43,6 +43,9 @@ static void returnToStartLine(bool clearText)
 {
     unsigned int numLines = numCharacters / (termSize.ws_col + 1);
     fprintf(debugFile, "width: %d, x: %d, y: %d numChar: %d, numLines = %d\n", termSize.ws_col, termSize.ws_xpixel, termSize.ws_ypixel, numCharacters, numLines);
+
+
+    // TODO: Add capability to return to off-screen start with page scrolls
 
     for (unsigned int i = 0; i < numLines; i++)
     {
@@ -55,7 +58,7 @@ static void returnToStartLine(bool clearText)
 
 static void gotoStatLine(void)
 {
-    // TODO: Slightly dirty hack to move to bottom of terminal
+    // Slightly dirty hack to move to bottom of terminal
     fputs("\e[9999;1H", stderr);
 }
 
@@ -90,7 +93,7 @@ static void printSpinner(void)
 
     fprintf(stderr, "\e[s");
     gotoStatLine();
-    fprintf(stderr, "\e[%uG%c\e[u", SPINNER_POS, spinner);
+    fprintf(stderr, "\e[%uG[%c]\e[u", SPINNER_POS, spinner);
 }
 
 
@@ -99,20 +102,30 @@ static void printStats(bool clearLine)
 {
     struct timespec timeDiff;
     struct timespec currentTime;
+    char statOutput[100] = {0};
+    char* statCursor = statOutput;
+    float cpuUsage = 0;
 
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     timespecsub(&currentTime, &procStartTime, &timeDiff);
 
+    statCursor += sprintf(statOutput, "\e[1G[%02ld:%02ld:%02ld] [%c]", 
+                            (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
+                            (timeDiff.tv_sec % 3600) / 60, 
+                            (timeDiff.tv_sec % 60),
+                            spinner);
+
+    if (getCPUUsage(&cpuUsage)) // This will always be false on the first call
+    {
+        statCursor += sprintf(statCursor, " CPU: %.1f%%", cpuUsage);
+    }
+
     if (clearLine)
         fputs("\n\e[K\n\e[A", stderr);
-
     fputs("\e[s", stderr);
     gotoStatLine();
-    fprintf(stderr, "\e[1G[%02ld:%02ld:%02ld] %c\e[u", 
-                        (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
-                        (timeDiff.tv_sec % 3600) / 60, 
-                        (timeDiff.tv_sec % 60),
-                        spinner);
+    fputs(statOutput, stderr);
+    fputs("\e[u", stderr);
 }
 
 
@@ -121,9 +134,9 @@ static void printStats(bool clearLine)
 // this callback to take an input, although we don't care about it
 static void tickCallback()
 {
-    sem_wait(&mutex);
+    sem_wait(&outputMutex);
     printStats(false);
-    sem_post(&mutex);
+    sem_post(&outputMutex);
 }
 
 
@@ -137,13 +150,16 @@ static void readLoop(int procStdOut[2])
     bool newLine = false;
 
     // Set the cursor to out starting position, and print spinner
-    sem_wait(&mutex);
+    sem_wait(&outputMutex);
     fprintf(stderr, "\n\e[1A");
     printSpinner();
-    sem_post(&mutex);
+    sem_post(&outputMutex);
 
     while (read(procStdOut[0], &inputChar, 1) > 0)
     {
+        //TODO: Buffer input for redraw on resize
+        
+
         if (inputChar == '\n')
         {
             // We don't want to erase the line immediately
@@ -153,7 +169,7 @@ static void readLoop(int procStdOut[2])
         }
         else
         {
-            sem_wait(&mutex);
+            sem_wait(&outputMutex);
 
             if (newLine == true)
             {
@@ -180,7 +196,7 @@ static void readLoop(int procStdOut[2])
             fprintf(debugFile, "   %d   \n", (numCharacters % termSize.ws_col));
             numCharacters++;
 
-            sem_post(&mutex);
+            sem_post(&outputMutex);
         }
     }
 }
@@ -263,11 +279,14 @@ static void sigintHandler(int sigNum)
 }
 
 
+
 static void sigwinchHandler(int sig)
 {
     ioctl(0, TIOCGWINSZ, &termSize);
     //fprintf(debugFile, "SIGWINCH raised, window size: %d rows / %d columns\n", termSize.ws_row, termSize.ws_col);
-} 
+}
+
+
 
 int main(int argc, char **argv)
 {
@@ -285,7 +304,7 @@ int main(int argc, char **argv)
     childProcessName = commandLine[0];
     pipe(procStdOut);
     pipe(procStdErr);
-    sem_init(&mutex, 0, 1);
+    sem_init(&outputMutex, 0, 1);
     debugFile = fopen(DEBUG_FILE, "w");
     setvbuf(debugFile, NULL, _IONBF, 0);
     fprintf(debugFile, "Starting...");
@@ -332,7 +351,7 @@ int main(int argc, char **argv)
         close(procStdOut[1]);  // close the write end of the pipe in the parent
         close(procStdErr[1]);  // close the write end of the pipe in the parent
 
-        portable_tick_create(tickCallback);
+        portable_tick_create(tickCallback, 1, 0, false);
 
         readLoop(procStdOut);
 
@@ -346,7 +365,7 @@ int main(int argc, char **argv)
                         NSEC_TO_MSEC(timeDiff.tv_nsec));
     }
 
-    sem_destroy(&mutex);
+    sem_destroy(&outputMutex);
     fclose(debugFile);
 
     return 0;
