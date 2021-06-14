@@ -44,3 +44,5 @@ noreturn void showUsage(int status);
 noreturn void showVersion(int status);
 noreturn void showError(int status, bool shouldShowUsage, const char* format, ...);
 bool getCPUUsage(float* usage);
+bool getMemUsage(float* usage);
+

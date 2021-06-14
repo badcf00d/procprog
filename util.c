@@ -20,6 +20,9 @@
 #include "util.h"
 
 
+extern FILE* debugFile;
+
+
 int countDigits(int n)
 {
     unsigned int num = abs(n);
@@ -182,7 +185,7 @@ bool getCPUUsage(float* usage)
         memcpy(&oldReading, &newReading, sizeof(oldReading));
         return false;
     }
-    else
+    else if (usage != NULL)
     {
         unsigned long long intervalTime = (newReading.tBusy + newReading.tIdle) - (oldReading.tBusy + oldReading.tIdle);
         unsigned long long idleTime = newReading.tIdle - oldReading.tIdle;
@@ -191,6 +194,45 @@ bool getCPUUsage(float* usage)
         memcpy(&oldReading, &newReading, sizeof(oldReading));
         return true;
     }
+    else
+    {
+        return false;
+    }
 }
 
 
+
+
+bool getMemUsage(float* usage)
+{
+    char memLine[60]; /* should really be around 30 characters */
+	FILE *fp;
+	unsigned long memAvailable, memTotal;
+    unsigned char fieldsFound = 0;
+
+    fp = fopen("/proc/meminfo", "r");
+    if (fp == NULL)
+    {
+        return false;
+    }
+    
+    while ((fgets(memLine, sizeof(memLine), fp)) && (fieldsFound != 0b11))
+    {
+        if (strncmp(memLine, "Mem", 3) == 0)
+        {
+            fieldsFound |= sscanf(memLine, "MemTotal: %lu", &memTotal);
+            fieldsFound |= sscanf(memLine, "MemAvailable: %lu", &memAvailable) << 1;
+        }
+	}
+	fclose(fp);
+
+    if ((fieldsFound == 0b11) && (memTotal != 0))
+    {
+        *usage = (1 - ((float)memAvailable / memTotal)) * 100;
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}

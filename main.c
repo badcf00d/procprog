@@ -32,7 +32,7 @@
 static struct timespec procStartTime;
 static unsigned int numCharacters = 0;
 static volatile struct winsize termSize;
-static FILE* debugFile;
+FILE* debugFile;
 static sem_t outputMutex;
 static const char* childProcessName;
 static char spinner = '|';
@@ -98,18 +98,18 @@ static void printSpinner(void)
 
 
 
-static void printStats(bool clearLine)
+static void printStats(bool newLine)
 {
     struct timespec timeDiff;
     struct timespec currentTime;
     char statOutput[100] = {0};
     char* statCursor = statOutput;
-    float cpuUsage = 0;
+    float cpuUsage, memUsage;
 
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     timespecsub(&currentTime, &procStartTime, &timeDiff);
 
-    statCursor += sprintf(statOutput, "\e[1G[%02ld:%02ld:%02ld] [%c]", 
+    statCursor += sprintf(statOutput, "\e[1G\e[K[%02ld:%02ld:%02ld] [%c]", 
                             (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
                             (timeDiff.tv_sec % 3600) / 60, 
                             (timeDiff.tv_sec % 60),
@@ -117,10 +117,14 @@ static void printStats(bool clearLine)
 
     if (getCPUUsage(&cpuUsage)) // This will always be false on the first call
     {
-        statCursor += sprintf(statCursor, " CPU: %.1f%%", cpuUsage);
+        statCursor += sprintf(statCursor, " [CPU: %.1f%%]", cpuUsage);
+    }
+    if (getMemUsage(&memUsage))
+    {
+        statCursor += sprintf(statCursor, " [Mem: %.1f%%]", memUsage);
     }
 
-    if (clearLine)
+    if (newLine)
         fputs("\n\e[K\n\e[A", stderr);
     fputs("\e[s", stderr);
     gotoStatLine();
@@ -352,6 +356,10 @@ int main(int argc, char **argv)
         close(procStdErr[1]);  // close the write end of the pipe in the parent
 
         portable_tick_create(tickCallback, 1, 0, false);
+#if __linux__
+        // CPU usage needs to be taken over a time interval
+        portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(10), true);
+#endif
 
         readLoop(procStdOut);
 
