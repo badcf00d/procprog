@@ -221,7 +221,11 @@ bool getMemUsage(float* usage)
     {
         if (strncmp(memLine, "Mem", 3) == 0)
         {
-            fieldsFound |= sscanf(memLine, "MemTotal: %lu", &memTotal);
+            if (((fieldsFound & 0b01) == 0) && 
+                ((fieldsFound |= sscanf(memLine, "MemTotal: %lu", &memTotal)) > 0))
+            {
+                continue;
+            }
             fieldsFound |= sscanf(memLine, "MemAvailable: %lu", &memAvailable) << 1;
         }
 	}
