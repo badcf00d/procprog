@@ -127,6 +127,7 @@ noreturn void showError(int status, bool shouldShowUsage, const char* format, ..
 
 
 
+// On linux this will always be false on the first call
 bool getCPUUsage(float* usage)
 {
 #ifdef __APPLE__

@@ -104,13 +104,15 @@ static void printSpinner(void)
 
 
 
-static void printStats(bool newLine)
+static void printStats(bool newLine, bool redraw)
 {
     struct timespec timeDiff;
     struct timespec currentTime;
     char statOutput[100] = {0};
     char* statCursor = statOutput;
-    float cpuUsage, memUsage;
+    unsigned int numLines = numCharacters / (termSize.ws_col + 1);
+    static float cpuUsage, memUsage;
+    static unsigned char validReadings = 0;
 
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     timespecsub(&currentTime, &procStartTime, &timeDiff);
@@ -121,11 +123,11 @@ static void printStats(bool newLine)
                             (timeDiff.tv_sec % 60),
                             spinner);
 
-    if (getCPUUsage(&cpuUsage)) // This will always be false on the first call
+    if ((redraw && (validReadings & 0b01)) || (validReadings |= getCPUUsage(&cpuUsage)))
     {
         statCursor += sprintf(statCursor, " [CPU: %.1f%%]", cpuUsage);
     }
-    if (getMemUsage(&memUsage))
+    if ((redraw && (validReadings & 0b10)) || (validReadings |= (getMemUsage(&memUsage) << 1)))
     {
         statCursor += sprintf(statCursor, " [Mem: %.1f%%]", memUsage);
     }
@@ -154,7 +156,7 @@ static void printStats(bool newLine)
 static void tickCallback()
 {
     sem_wait(&outputMutex);
-    printStats(false);
+    printStats(false, false);
     sem_post(&outputMutex);
 }
 
@@ -202,12 +204,12 @@ static void readLoop(int procStdOut[2])
             {
                 if ((numCharacters % termSize.ws_col) == 0)
                 {
-                    printStats(true);
+                    printStats(true, true);
                 }
             }
             else if (numCharacters == termSize.ws_col)
             {
-                printStats(true);
+                printStats(true, true);
             }
 
             putc(inputChar, stderr);
