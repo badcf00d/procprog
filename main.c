@@ -18,10 +18,10 @@
 #include "util.h"
 
 /*
-    Useful shell one-liner to test:
-    make && ./procprog perl -e '$| = 1; sleep(3); while (1) { for (1..3) { print("$_"); sleep(1); } print "\n"}'
-    make && ./procprog perl -e '$| = 1; for (1..3) { for (1..3) { print("$_"); sleep(1); } print "\n"}'
-    make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,$_,$_,$_,$_,"); sleep(1); } print "\n"}'
+Useful shell one-liner to test:
+make && ./procprog perl -e '$| = 1; sleep(3); while (1) { for (1..3) { print("$_"); select(undef, undef, undef, 0.1); } print "\n"}'
+make && ./procprog perl -e '$| = 1; for (1..3) { for (1..3) { print("$_"); select(undef, undef, undef, 0.1); } print "\n"}'
+make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,$_,$_,$_,$_,$_,$_,$_,$_,$_,"); select(undef, undef, undef, 0.1); } print "\n"}'
 */
 
 #define TIMER_LENGTH 10
@@ -42,17 +42,23 @@ static char spinner = '|';
 static void returnToStartLine(bool clearText)
 {
     unsigned int numLines = numCharacters / (termSize.ws_col + 1);
-    fprintf(debugFile, "width: %d, x: %d, y: %d numChar: %d, numLines = %d\n", termSize.ws_col, termSize.ws_xpixel, termSize.ws_ypixel, numCharacters, numLines);
-
-
-    // TODO: Add capability to return to off-screen start with page scrolls
+    fprintf(debugFile, "height: %d, width: %d, x: %d, y: %d numChar: %d, numLines = %d\n", 
+                termSize.ws_row, termSize.ws_col, termSize.ws_xpixel, termSize.ws_ypixel, numCharacters, numLines);
 
     for (unsigned int i = 0; i < numLines; i++)
     {
-        fprintf(stderr, "%s\e[1A", (clearText) ? "\e[2K" : "");
+        if (clearText)
+        {
+            fputs("\e[2K", stderr);
+        }
+        fputs("\e[1A", stderr);
     }
 
-    fprintf(stderr, "\e[1G%s", (clearText) ? "\e[2K" : "");
+    if (clearText)
+    {
+        fputs("\e[2K", stderr);
+    }
+    fputs("\e[1G", stderr);
 }
 
 
@@ -125,7 +131,16 @@ static void printStats(bool newLine)
     }
 
     if (newLine)
-        fputs("\n\e[K\n\e[A", stderr);
+    {
+        if (numLines >= (termSize.ws_row - 2))
+        {
+            fputs("\n\e[K\e[1S\e[A", stderr);
+        }
+        else
+        {
+            fputs("\n\e[K\n\e[A", stderr);
+        }
+    }
     fputs("\e[s", stderr);
     gotoStatLine();
     fputs(statOutput, stderr);
@@ -196,8 +211,8 @@ static void readLoop(int procStdOut[2])
             }
 
             putc(inputChar, stderr);
-            putc(inputChar, debugFile);
-            fprintf(debugFile, "   %d   \n", (numCharacters % termSize.ws_col));
+            //putc(inputChar, debugFile);
+            //fprintf(debugFile, "   %d   \n", (numCharacters % termSize.ws_col));
             numCharacters++;
 
             sem_post(&outputMutex);
