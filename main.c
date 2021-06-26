@@ -13,6 +13,8 @@
 #include <fcntl.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <pthread.h>
+#include <string.h>
 
 #include "timer.h"
 #include "util.h"
@@ -35,8 +37,10 @@ static unsigned int numCharacters = 0;
 static volatile struct winsize termSize;
 FILE* debugFile;
 static sem_t outputMutex;
+static sem_t redrawMutex;
 static const char* childProcessName;
 static char spinner = '|';
+static char* inputBuffer;
 
 
 
@@ -183,6 +187,7 @@ static void tickCallback()
 static void readLoop(int procStdOut[2])
 {
     char inputChar;
+    inputBuffer = (char*) calloc(sizeof(char), 2048);
     bool newLine = false;
 
     // Set the cursor to out starting position, and print spinner
@@ -192,10 +197,7 @@ static void readLoop(int procStdOut[2])
     sem_post(&outputMutex);
 
     while (read(procStdOut[0], &inputChar, 1) > 0)
-    {
-        //TODO: Buffer input for redraw on resize
-        
-
+    {        
         if (inputChar == '\n')
         {
             // We don't want to erase the line immediately
@@ -205,6 +207,11 @@ static void readLoop(int procStdOut[2])
         }
         else
         {
+            if (inputBuffer)
+            {
+                *(inputBuffer + numCharacters) = inputChar;
+            }
+            
             sem_wait(&outputMutex);
 
             if (newLine == true)
@@ -212,6 +219,7 @@ static void readLoop(int procStdOut[2])
                 returnToStartLine(true);
                 printSpinner();
                 newLine = false;
+                memset(inputBuffer, 0, 2048);
                 numCharacters = 0;
             }
             
@@ -316,9 +324,31 @@ static void sigintHandler(int sigNum)
 
 
 
+static void* redrawThread(void* arg)
+{
+    while (1)
+    {
+        sem_wait(&redrawMutex);
+
+        if (inputBuffer)
+        {
+            sem_wait(&outputMutex);
+            returnToStartLine(true);
+            tidyStats();
+            fputs(inputBuffer, stderr);
+            printStats(false, true);
+            sem_post(&outputMutex);
+        }
+    }
+    return NULL;
+}
+
+
+
 static void sigwinchHandler(int sig)
 {
     ioctl(0, TIOCGWINSZ, &termSize);
+    sem_post(&redrawMutex);
     //fprintf(debugFile, "SIGWINCH raised, window size: %d rows / %d columns\n", termSize.ws_row, termSize.ws_col);
 }
 
@@ -334,6 +364,7 @@ int main(int argc, char **argv)
     pid_t pid;
     struct sigaction intCatch;
     struct sigaction winchCatch;
+    pthread_t threadId;
 
     setProgramName(argv[0]);
     commandLine = getArgs(argc, argv);
@@ -341,9 +372,15 @@ int main(int argc, char **argv)
     pipe(procStdOut);
     pipe(procStdErr);
     sem_init(&outputMutex, 0, 1);
+    sem_init(&redrawMutex, 0, 1);
     debugFile = fopen(DEBUG_FILE, "w");
     setvbuf(debugFile, NULL, _IONBF, 0);
-    fprintf(debugFile, "Starting...");
+    fprintf(debugFile, "Starting...\n");
+
+    if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
+    {
+        showError(EXIT_FAILURE, false, "pthread_create failed\n");
+    }
 
     ioctl(0, TIOCGWINSZ, &termSize);
     clock_gettime(CLOCK_MONOTONIC, &procStartTime);
@@ -406,6 +443,7 @@ int main(int argc, char **argv)
     }
 
     sem_destroy(&outputMutex);
+    sem_destroy(&redrawMutex);
     fclose(debugFile);
 
     return 0;
