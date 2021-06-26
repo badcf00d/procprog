@@ -19,6 +19,7 @@
 
 /*
 Useful shell one-liner to test:
+make && ./procprog perl -e '$| = 1; while (1) { for (1..20) { print("$_"); select(undef, undef, undef, 1); } print "\n"}'
 make && ./procprog perl -e '$| = 1; sleep(3); while (1) { for (1..3) { print("$_"); select(undef, undef, undef, 0.1); } print "\n"}'
 make && ./procprog perl -e '$| = 1; for (1..3) { for (1..3) { print("$_"); select(undef, undef, undef, 0.1); } print "\n"}'
 make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,$_,$_,$_,$_,$_,$_,$_,$_,$_,"); select(undef, undef, undef, 0.1); } print "\n"}'
@@ -123,13 +124,27 @@ static void printStats(bool newLine, bool redraw)
                             (timeDiff.tv_sec % 60),
                             spinner);
 
-    if ((redraw && (validReadings & 0b01)) || (validReadings |= getCPUUsage(&cpuUsage)))
+    if (redraw)
     {
-        statCursor += sprintf(statCursor, " [CPU: %.1f%%]", cpuUsage);
+        if (validReadings & 0b01)
+        {
+            statCursor += sprintf(statCursor, " [CPU: %.1f%%]", cpuUsage);
+        }
+        if (validReadings & 0b10)
+        {
+            statCursor += sprintf(statCursor, " [Mem: %.1f%%]", memUsage);
+        }
     }
-    if ((redraw && (validReadings & 0b10)) || (validReadings |= (getMemUsage(&memUsage) << 1)))
+    else
     {
-        statCursor += sprintf(statCursor, " [Mem: %.1f%%]", memUsage);
+        if (validReadings |= getCPUUsage(&cpuUsage))
+        {
+            statCursor += sprintf(statCursor, " [CPU: %.1f%%]", cpuUsage);
+        }
+        if (validReadings |= (getMemUsage(&memUsage) << 1))
+        {
+            statCursor += sprintf(statCursor, " [Mem: %.1f%%]", memUsage);
+        }
     }
 
     if (newLine)
