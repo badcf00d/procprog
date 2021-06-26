@@ -15,6 +15,7 @@
 #include <signal.h>
 #include <pthread.h>
 #include <string.h>
+#include <termios.h>
 
 #include "timer.h"
 #include "util.h"
@@ -43,12 +44,42 @@ static char spinner = '|';
 static char* inputBuffer;
 
 
+static int getCursorPosition(int *x, int *y) 
+{
+    char buffer[30] = {0};
+    char* bufCursor = buffer;
+    char ch = 0;
+    struct termios term, restore;
+
+    tcgetattr(STDIN_FILENO, &term);
+    tcgetattr(STDIN_FILENO, &restore);
+    term.c_lflag &= ~(ICANON|ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &term);
+
+    write(STDOUT_FILENO, "\e[6n", 4);
+
+    for (int i = 0; i < sizeof(buffer) && (ch != 'R'); i++)
+    {
+        if (read(STDIN_FILENO, &ch, 1) == 0) 
+        {
+            tcsetattr(STDIN_FILENO, TCSANOW, &restore);
+            return 0;
+        }
+        *bufCursor++ = ch;
+        //fprintf(debugFile, "bufCursor = \"%d\" \"%c\"\n", ch, ch);
+    }
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &restore);
+    return sscanf(buffer, "\e[%u;%uR", y, x);
+}
 
 static void returnToStartLine(bool clearText)
 {
     unsigned int numLines = numCharacters / (termSize.ws_col + 1);
+    int x = 0, y = 0;
+    getCursorPosition(&x, &y);
     fprintf(debugFile, "height: %d, width: %d, x: %d, y: %d numChar: %d, numLines = %d\n", 
-                termSize.ws_row, termSize.ws_col, termSize.ws_xpixel, termSize.ws_ypixel, numCharacters, numLines);
+                termSize.ws_row, termSize.ws_col, x, y, numCharacters, numLines);
 
     for (unsigned int i = 0; i < numLines; i++)
     {
