@@ -272,7 +272,6 @@ static void readLoop(int procStdOut[2])
             {
                 returnToStartLine(true);
                 printSpinner();
-                newLine = false;
                 memset(inputBuffer, 0, 2048);
                 numCharacters = 0;
             }
@@ -292,7 +291,15 @@ static void readLoop(int procStdOut[2])
             putc(inputChar, stderr);
             //putc(inputChar, debugFile);
             //fprintf(debugFile, "   %d   \n", (numCharacters % termSize.ws_col));
-            numCharacters++;
+            if (newLine == true)
+            {
+                newLine = false;
+            }
+            else
+            {
+                numCharacters++;
+            }            
+
 
             sem_post(&outputMutex);
         }
