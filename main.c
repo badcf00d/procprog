@@ -34,7 +34,7 @@ make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,$_,$_,$_
 #define DEBUG_FILE "debug.log"
 
 static struct timespec procStartTime;
-static unsigned int numCharacters = 0;
+static unsigned numCharacters = 0;
 static volatile struct winsize termSize;
 FILE* debugFile;
 static sem_t outputMutex;
@@ -86,13 +86,13 @@ static int getCursorPosition(unsigned *x, unsigned *y)
 
 static void returnToStartLine(bool clearText)
 {
-    unsigned int numLines = numCharacters / (termSize.ws_col + 1);
-    int x = 0, y = 0;
+    unsigned numLines = numCharacters / (termSize.ws_col + 1);
+    unsigned x, y;
     getCursorPosition(&x, &y);
-    fprintf(debugFile, "height: %d, width: %d, x: %d, y: %d numChar: %d, numLines = %d\n", 
-                termSize.ws_row, termSize.ws_col, x, y, numCharacters, numLines);
+    fprintf(debugFile, "height: %d, width: %d, y: %d numChar: %d, numLines = %d\n", 
+                termSize.ws_row, termSize.ws_col, y, numCharacters, numLines);
 
-    for (unsigned int i = 0; i < numLines; i++)
+    for (unsigned i = 0; i < numLines; i++)
     {
         if (clearText)
         {
@@ -111,8 +111,20 @@ static void returnToStartLine(bool clearText)
 
 static void gotoStatLine(void)
 {
-    // Slightly dirty hack to move to bottom of terminal
-    fputs("\e[9999;1H", stderr);
+    int numLines;
+    unsigned y;
+
+    getCursorPosition(NULL, &y);
+    numLines = (termSize.ws_row - 1) - y;
+
+    fprintf(debugFile, "height: %d, width: %d, y: %d numChar: %d, numLines = %d\n", 
+                termSize.ws_row, termSize.ws_col, y, numCharacters, numLines);
+
+    for (int i = 0; i < numLines; i++)
+    {
+        fputs("\e[1B\e[2K", stderr);
+    }
+    fputs("\e[1B\e[1G", stderr);
 }
 
 
@@ -120,7 +132,7 @@ static void tidyStats(void)
 {
     fputs("\e[s", stderr);
     gotoStatLine();
-    fputs("\e[2K\e[u", stderr);
+    fputs("\e[u", stderr);
 }
 
 
@@ -157,7 +169,7 @@ static void printStats(bool newLine, bool redraw)
     struct timespec currentTime;
     char statOutput[100] = {0};
     char* statCursor = statOutput;
-    unsigned int numLines = numCharacters / (termSize.ws_col + 1);
+    unsigned numLines = numCharacters / (termSize.ws_col + 1);
     static float cpuUsage, memUsage;
     static unsigned char validReadings = 0;
 
@@ -375,8 +387,8 @@ static void* redrawThread(void* arg)
         if (inputBuffer)
         {
             sem_wait(&outputMutex);
-            returnToStartLine(true);
             tidyStats();
+            returnToStartLine(true);
             fputs(inputBuffer, stderr);
             printStats(false, true);
             sem_post(&outputMutex);
