@@ -42,9 +42,10 @@ static sem_t redrawMutex;
 static const char* childProcessName;
 static char spinner = '|';
 static char* inputBuffer;
+static unsigned startingLine;
 
 
-static int getCursorPosition(int *x, int *y) 
+static int getCursorPosition(unsigned *x, unsigned *y) 
 {
     char buffer[30] = {0};
     char* bufCursor = buffer;
@@ -70,7 +71,17 @@ static int getCursorPosition(int *x, int *y)
     }
 
     tcsetattr(STDIN_FILENO, TCSANOW, &restore);
-    return sscanf(buffer, "\e[%u;%uR", y, x);
+
+    if ((x != NULL) && (y != NULL))
+    {
+        return sscanf(buffer, "\e[%u;%uR", y, x);
+    }
+    else if (y != NULL)
+    {
+        *y = (unsigned) strtoul(buffer + 2, NULL, 10);
+        return 1;
+    }
+    return 0;
 }
 
 static void returnToStartLine(bool clearText)
@@ -412,6 +423,8 @@ int main(int argc, char **argv)
     {
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
     }
+
+    getCursorPosition(NULL, &startingLine);
 
     ioctl(0, TIOCGWINSZ, &termSize);
     clock_gettime(CLOCK_MONOTONIC, &procStartTime);
