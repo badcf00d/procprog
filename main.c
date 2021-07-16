@@ -260,12 +260,7 @@ static void readLoop(int procStdOut[2])
             newLine = true;
         }
         else
-        {
-            if (inputBuffer)
-            {
-                *(inputBuffer + numCharacters) = inputChar;
-            }
-            
+        {           
             sem_wait(&outputMutex);
 
             if (newLine == true)
@@ -274,6 +269,12 @@ static void readLoop(int procStdOut[2])
                 printSpinner();
                 memset(inputBuffer, 0, 2048);
                 numCharacters = 0;
+                newLine = false;
+            }
+
+            if ((inputBuffer) && (numCharacters < 2048))
+            {
+                *(inputBuffer + numCharacters) = inputChar;
             }
             
             if (numCharacters > termSize.ws_col)
@@ -291,16 +292,8 @@ static void readLoop(int procStdOut[2])
             putc(inputChar, stderr);
             //putc(inputChar, debugFile);
             //fprintf(debugFile, "   %d   \n", (numCharacters % termSize.ws_col));
-            if (newLine == true)
-            {
-                newLine = false;
-            }
-            else
-            {
-                numCharacters++;
-            }            
 
-
+            numCharacters++;
             sem_post(&outputMutex);
         }
     }
