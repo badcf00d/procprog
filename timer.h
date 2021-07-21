@@ -15,3 +15,18 @@ void portable_tick_create(void (*callback)(), unsigned int sec, unsigned int nse
             (diff)->tv_nsec += 1000000000L;	                    \
         }                                                       \
     } while (0)
+
+#define	timespeccmp(tsp, usp, cmp)                              \
+    (((tsp)->tv_sec == (usp)->tv_sec) ?                         \
+        ((tsp)->tv_nsec cmp (usp)->tv_nsec) :                   \
+        ((tsp)->tv_sec cmp (usp)->tv_sec))
+
+#define	timespecadd(start, inc, output)                         \
+    do {                                                        \
+        (output)->tv_sec = (start)->tv_sec + (inc)->tv_sec;     \
+        (output)->tv_nsec = (start)->tv_nsec + (inc)->tv_nsec;  \
+        if ((output)->tv_nsec >= 1000000000L) {                 \
+            (output)->tv_sec++;                                 \
+            (output)->tv_nsec -= 1000000000L;                   \
+        }                                                       \
+    } while (0)

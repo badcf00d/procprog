@@ -385,19 +385,46 @@ static void sigintHandler(int sigNum)
 
 static void* redrawThread(void* arg)
 {
+    struct timespec currentTime;
+    struct timespec timeoutTime;
+    struct timespec debounceTime = {
+        .tv_sec = 0,
+        .tv_nsec = MSEC_TO_NSEC(500)
+    };
+    int retval;
+    
     while (1)
     {
         sem_wait(&redrawMutex);
+        sem_wait(&outputMutex);
 
         if (inputBuffer)
         {
-            sem_wait(&outputMutex);
-            tidyStats();
             returnToStartLine(true);
-            fputs(inputBuffer, stderr);
-            printStats(false, true);
-            sem_post(&outputMutex);
         }
+
+debounce:
+        clock_gettime(CLOCK_REALTIME, &currentTime);
+        timespecadd(&currentTime, &debounceTime, &timeoutTime);
+
+        while ((retval = sem_timedwait(&redrawMutex, &timeoutTime)) == -1 && (errno == EINTR))
+            continue;       /* Restart if interrupted by handler */
+
+        if (retval == 0)
+        {
+            fprintf(debugFile, "debounce! errno %d, revtal %d\n", errno, retval);
+            goto debounce;
+        }
+
+        tidyStats();
+        printStats(false, true);
+
+        if (inputBuffer)
+        {
+            fputs(inputBuffer, stderr);
+        }
+        fprintf(debugFile, "redraw done, errno %d\n", errno);
+        sem_post(&outputMutex);
     }
     return NULL;
 }
@@ -431,7 +458,7 @@ int main(int argc, char **argv)
     pipe(procStdOut);
     pipe(procStdErr);
     sem_init(&outputMutex, 0, 1);
-    sem_init(&redrawMutex, 0, 1);
+    sem_init(&redrawMutex, 0, 0);
     debugFile = fopen(DEBUG_FILE, "w");
     setvbuf(debugFile, NULL, _IONBF, 0);
     fprintf(debugFile, "Starting...\n");
