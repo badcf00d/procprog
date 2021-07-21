@@ -431,11 +431,6 @@ int main(int argc, char **argv)
     setvbuf(debugFile, NULL, _IONBF, 0);
     fprintf(debugFile, "Starting...\n");
 
-    if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
-    {
-        showError(EXIT_FAILURE, false, "pthread_create failed\n");
-    }
-
     getCursorPosition(NULL, &startingLine);
 
     ioctl(0, TIOCGWINSZ, &termSize);
@@ -485,6 +480,10 @@ int main(int argc, char **argv)
         // CPU usage needs to be taken over a time interval
         portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(10), true);
 #endif
+        if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
+        {
+            showError(EXIT_FAILURE, false, "pthread_create failed\n");
+        }
 
         readLoop(procStdOut);
 
