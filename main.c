@@ -115,7 +115,7 @@ static void gotoStatLine(void)
     unsigned y;
 
     getCursorPosition(NULL, &y);
-    numLines = (termSize.ws_row - 1) - y;
+    numLines = termSize.ws_row - y;
 
     fprintf(debugFile, "height: %d, width: %d, y: %d numChar: %d, numLines = %d\n", 
                 termSize.ws_row, termSize.ws_col, y, numCharacters, numLines);
