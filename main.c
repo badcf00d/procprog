@@ -244,11 +244,16 @@ static void readLoop(int procStdOut[2])
     inputBuffer = (char*) calloc(sizeof(char), 2048);
     bool newLine = false;
 
-    // Set the cursor to out starting position, and print spinner
+    // Set the cursor to out starting position
     sem_wait(&outputMutex);
     fprintf(stderr, "\n\e[1A");
-    printSpinner();
     sem_post(&outputMutex);
+
+    portable_tick_create(tickCallback, 1, 0, false);
+#if __linux__
+    // CPU usage needs to be taken over a time interval
+    portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(10), true);
+#endif
 
     while (read(procStdOut[0], &inputChar, 1) > 0)
     {        
@@ -475,11 +480,6 @@ int main(int argc, char **argv)
         close(procStdOut[1]);  // close the write end of the pipe in the parent
         close(procStdErr[1]);  // close the write end of the pipe in the parent
 
-        portable_tick_create(tickCallback, 1, 0, false);
-#if __linux__
-        // CPU usage needs to be taken over a time interval
-        portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(10), true);
-#endif
         if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
         {
             showError(EXIT_FAILURE, false, "pthread_create failed\n");
