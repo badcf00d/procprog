@@ -21,6 +21,13 @@ struct procStat
     unsigned long long tGuestNice;
 };
 
+struct netDevReading
+{
+    struct timespec time;
+    unsigned long long bytesDown;
+    unsigned long long bytesUp;
+};
+
 
 struct cpuStat
 {
@@ -45,4 +52,4 @@ noreturn void showVersion(int status);
 noreturn void showError(int status, bool shouldShowUsage, const char* format, ...);
 bool getCPUUsage(float* usage);
 bool getMemUsage(float* usage);
-
+bool getNetdevUsage(float* download, float* upload);

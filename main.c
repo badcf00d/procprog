@@ -138,7 +138,7 @@ static void tidyStats(void)
 
 
 
-static void printSpinner(void)
+static void advanceSpinner(void)
 {
     switch (spinner)
     {
@@ -155,10 +155,6 @@ static void printSpinner(void)
             spinner = '/';
             break;
     }
-
-    fprintf(stderr, "\e[s");
-    gotoStatLine();
-    fprintf(stderr, "\e[%uG[%c]\e[u", SPINNER_POS, spinner);
 }
 
 
@@ -170,7 +166,7 @@ static void printStats(bool newLine, bool redraw)
     char statOutput[100] = {0};
     char* statCursor = statOutput;
     unsigned numLines = numCharacters / (termSize.ws_col + 1);
-    static float cpuUsage, memUsage;
+    static float cpuUsage, memUsage, download, upload;
     static unsigned char validReadings = 0;
 
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
@@ -184,13 +180,17 @@ static void printStats(bool newLine, bool redraw)
 
     if (redraw)
     {
-        if (validReadings & 0b01)
+        if (validReadings & 0b001)
         {
             statCursor += sprintf(statCursor, " [CPU: %.1f%%]", cpuUsage);
         }
-        if (validReadings & 0b10)
+        if (validReadings & 0b010)
         {
             statCursor += sprintf(statCursor, " [Mem: %.1f%%]", memUsage);
+        }
+        if (validReadings & 0b100)
+        {
+            statCursor += sprintf(statCursor, " [DL: %.1fKB/s] [UL: %.1fKB/s]", download, upload);
         }
     }
     else
@@ -202,6 +202,10 @@ static void printStats(bool newLine, bool redraw)
         if (validReadings |= (getMemUsage(&memUsage) << 1))
         {
             statCursor += sprintf(statCursor, " [Mem: %.1f%%]", memUsage);
+        }
+        if (validReadings |= (getNetdevUsage(&download, &upload) << 2))
+        {
+            statCursor += sprintf(statCursor, " [DL: %.1fKB/s] [UL: %.1fKB/s]", download, upload);
         }
     }
 
@@ -270,8 +274,9 @@ static void readLoop(int procStdOut[2])
 
             if (newLine == true)
             {
+                advanceSpinner();
+                printStats(true, true);
                 returnToStartLine(true);
-                printSpinner();
                 memset(inputBuffer, 0, 2048);
                 numCharacters = 0;
                 newLine = false;
@@ -416,7 +421,6 @@ debounce:
             goto debounce;
         }
 
-        tidyStats();
         printStats(false, true);
 
         if (inputBuffer)

@@ -18,6 +18,7 @@
 #endif
 
 #include "util.h"
+#include "timer.h"
 
 
 extern FILE* debugFile;
@@ -147,7 +148,7 @@ bool getCPUUsage(float* usage)
 #elif __linux__
     FILE *fp;
     char* retVal;
-    char statLine[256]; // Theoretically this could be up to ~220 characters
+    char statLine[256]; // Theoretically this could be up to ~220 characters, usually ~50
     struct procStat statBuffer;
     struct cpuStat newReading;
     static struct cpuStat oldReading;
@@ -206,7 +207,10 @@ bool getCPUUsage(float* usage)
 
 bool getMemUsage(float* usage)
 {
-    char memLine[60]; /* should really be around 30 characters */
+#ifdef __APPLE__
+    // TODO
+#elif __linux__
+    char memLine[64]; // should really be around 30 characters
 	FILE *fp;
 	unsigned long memAvailable, memTotal;
     unsigned char fieldsFound = 0;
@@ -230,6 +234,9 @@ bool getMemUsage(float* usage)
         }
 	}
 	fclose(fp);
+#else
+    #error "Don't have a CPU usage implemenatation for this OS"
+#endif
 
     if ((fieldsFound == 0b11) && (memTotal != 0))
     {
@@ -239,5 +246,64 @@ bool getMemUsage(float* usage)
     else
     {
         return false;
+    }
+}
+
+
+
+
+bool getNetdevUsage(float* download, float* upload)
+{
+    static struct netDevReading oldReading;
+    struct netDevReading newReading = {0};
+    unsigned long long bytesDown, bytesUp;
+    struct timespec timeDiff;
+    char devLine[256]; // should be no longer than ~120 characters
+    float interval;
+	FILE *fp;
+
+
+    clock_gettime(CLOCK_MONOTONIC, &newReading.time);
+
+    fp = fopen("/proc/net/dev", "r");
+    if (fp == NULL)
+    {
+        return false;
+    }
+
+    while (fgets(devLine, sizeof(devLine), fp))
+    {
+        if (*(devLine + 6) == ':')
+        {
+            sscanf(devLine + 7, "%llu %*u %*u %*u %*u %*u %*u %*u " 
+                                "%llu %*u %*u %*u %*u %*u %*u %*u", &bytesDown, &bytesUp);
+            newReading.bytesDown += bytesDown;
+            newReading.bytesUp += bytesUp;
+            fprintf(debugFile, "Read line, bytesDown %llu, bytesUp %llu\n", bytesDown, bytesUp);
+        }
+	}
+	fclose(fp);
+
+    if ((newReading.bytesDown == 0) && (newReading.bytesUp == 0))
+    {
+        return false;
+    }
+    if (oldReading.time.tv_sec == 0)
+    {
+        memcpy(&oldReading, &newReading, sizeof(oldReading));
+        return false;
+    }
+    else
+    {
+        timespecsub(&newReading.time, &oldReading.time, &timeDiff);
+        interval = timeDiff.tv_sec + (timeDiff.tv_nsec * 1e-9);
+
+        bytesDown = newReading.bytesDown - oldReading.bytesDown;
+        bytesUp = newReading.bytesUp - oldReading.bytesUp;
+        *download = (bytesDown / 1000.0f) / interval;
+        *upload = (bytesUp / 1000.0f) / interval;
+
+        memcpy(&oldReading, &newReading, sizeof(oldReading));
+        return true;
     }
 }
