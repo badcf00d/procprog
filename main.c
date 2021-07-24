@@ -42,55 +42,13 @@ static sem_t redrawMutex;
 static const char* childProcessName;
 static char spinner = '|';
 static char* inputBuffer;
-static unsigned startingLine;
 
-
-static int getCursorPosition(unsigned *x, unsigned *y) 
-{
-    char buffer[30] = {0};
-    char* bufCursor = buffer;
-    char ch = 0;
-    struct termios term, restore;
-
-    tcgetattr(STDIN_FILENO, &term);
-    tcgetattr(STDIN_FILENO, &restore);
-    term.c_lflag &= ~(ICANON|ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &term);
-
-    write(STDOUT_FILENO, "\e[6n", 4);
-
-    for (int i = 0; i < sizeof(buffer) && (ch != 'R'); i++)
-    {
-        if (read(STDIN_FILENO, &ch, 1) == 0) 
-        {
-            tcsetattr(STDIN_FILENO, TCSANOW, &restore);
-            return 0;
-        }
-        *bufCursor++ = ch;
-        //fprintf(debugFile, "bufCursor = \"%d\" \"%c\"\n", ch, ch);
-    }
-
-    tcsetattr(STDIN_FILENO, TCSANOW, &restore);
-
-    if ((x != NULL) && (y != NULL))
-    {
-        return sscanf(buffer, "\e[%u;%uR", y, x);
-    }
-    else if (y != NULL)
-    {
-        *y = (unsigned) strtoul(buffer + 2, NULL, 10);
-        return 1;
-    }
-    return 0;
-}
 
 static void returnToStartLine(bool clearText)
 {
     unsigned numLines = numCharacters / (termSize.ws_col + 1);
-    unsigned x, y;
-    getCursorPosition(&x, &y);
-    fprintf(debugFile, "height: %d, width: %d, y: %d numChar: %d, numLines = %d\n", 
-                termSize.ws_row, termSize.ws_col, y, numCharacters, numLines);
+    fprintf(debugFile, "height: %d, width: %d, numChar: %d, numLines = %d\n", 
+                termSize.ws_row, termSize.ws_col, numCharacters, numLines);
 
     for (unsigned i = 0; i < numLines; i++)
     {
@@ -111,16 +69,7 @@ static void returnToStartLine(bool clearText)
 
 static void gotoStatLine(void)
 {
-    int numLines;
-    unsigned y;
-
-    getCursorPosition(NULL, &y);
-    numLines = termSize.ws_row - y;
-
-    fprintf(debugFile, "height: %d, width: %d, y: %d numChar: %d, numLines = %d\n", 
-                termSize.ws_row, termSize.ws_col, y, numCharacters, numLines);
-
-    for (int i = 0; i < numLines; i++)
+    for (int i = 0; i < termSize.ws_row; i++)
     {
         fputs("\e[1B\e[2K", stderr);
     }
@@ -466,8 +415,6 @@ int main(int argc, char **argv)
     debugFile = fopen(DEBUG_FILE, "w");
     setvbuf(debugFile, NULL, _IONBF, 0);
     fprintf(debugFile, "Starting...\n");
-
-    getCursorPosition(NULL, &startingLine);
 
     ioctl(0, TIOCGWINSZ, &termSize);
     clock_gettime(CLOCK_MONOTONIC, &procStartTime);
