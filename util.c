@@ -24,40 +24,6 @@
 extern FILE* debugFile;
 
 
-int countDigits(int n)
-{
-    unsigned int num = abs(n);
-    unsigned int testNum = 10, numDigits = 1;
-
-    while(1) 
-    {
-        if (num < testNum)
-            return numDigits;
-        if (testNum > INT_MAX / 10)
-            return numDigits + 1;
-
-        testNum *= 10;
-        numDigits++;
-    }
-}
-
-
-int min(int a, int b) 
-{
-    if (a > b)
-        return b;
-    return a;
-}
-
-
-int max(int a, int b) 
-{
-    if (a < b)
-        return b;
-    return a;
-}
-
-
 int setProgramName(char* name)
 {
     int retVal;
