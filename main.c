@@ -223,8 +223,8 @@ static void readLoop(int procStdOut[2])
             if (newLine == true)
             {
                 advanceSpinner();
-                printStats(true, true);
                 returnToStartLine(true);
+                printStats(false, true);
                 memset(inputBuffer, 0, 2048);
                 numCharacters = 0;
                 newLine = false;
