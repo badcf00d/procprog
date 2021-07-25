@@ -39,7 +39,7 @@ FILE* debugFile;
 static sem_t outputMutex;
 static sem_t redrawMutex;
 static const char* childProcessName;
-static char spinner = '|';
+static char spinner = '-';
 static char* inputBuffer;
 
 
@@ -111,7 +111,7 @@ static void printStats(bool newLine, bool redraw)
 {
     struct timespec timeDiff;
     struct timespec currentTime;
-    char statOutput[100] = {0};
+    char statOutput[150] = {0};
     char* statCursor = statOutput;
     unsigned numLines = numCharacters / (termSize.ws_col + 1);
     static float cpuUsage, memUsage, download, upload;
@@ -120,7 +120,7 @@ static void printStats(bool newLine, bool redraw)
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     timespecsub(&currentTime, &procStartTime, &timeDiff);
 
-    statCursor += sprintf(statOutput, "\e[1G\e[K[%02ld:%02ld:%02ld] [%c]", 
+    statCursor += sprintf(statOutput, "\e[1G\e[K" ANSI_FG_CYAN "%02ld:%02ld:%02ld %c" ANSI_RESET_ALL, 
                             (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
                             (timeDiff.tv_sec % 3600) / 60, 
                             (timeDiff.tv_sec % 60),
@@ -130,30 +130,30 @@ static void printStats(bool newLine, bool redraw)
     {
         if (validReadings & 0b001)
         {
-            statCursor += sprintf(statCursor, " [CPU: %.1f%%]", cpuUsage);
+            statCursor += sprintf(statCursor, " [" ANSI_FG_DGRAY "CPU: %.1f%%" ANSI_RESET_ALL "]", cpuUsage);
         }
         if (validReadings & 0b010)
         {
-            statCursor += sprintf(statCursor, " [Mem: %.1f%%]", memUsage);
+            statCursor += sprintf(statCursor, " [" ANSI_FG_DGRAY "Mem: %.1f%%" ANSI_RESET_ALL "]", memUsage);
         }
         if (validReadings & 0b100)
         {
-            statCursor += sprintf(statCursor, " [DL: %.1fKB/s] [UL: %.1fKB/s]", download, upload);
+            statCursor += sprintf(statCursor, " [" ANSI_FG_DGRAY "Rx/Tx: %.1fKB/s / %.1fKB/s" ANSI_RESET_ALL "]", download, upload);
         }
     }
     else
     {
         if (validReadings |= getCPUUsage(&cpuUsage))
         {
-            statCursor += sprintf(statCursor, " [CPU: %.1f%%]", cpuUsage);
+            statCursor += sprintf(statCursor, " [" ANSI_FG_DGRAY "CPU: %.1f%%" ANSI_RESET_ALL "]", cpuUsage);
         }
         if (validReadings |= (getMemUsage(&memUsage) << 1))
         {
-            statCursor += sprintf(statCursor, " [Mem: %.1f%%]", memUsage);
+            statCursor += sprintf(statCursor, " [" ANSI_FG_DGRAY "Mem: %.1f%%" ANSI_RESET_ALL "]", memUsage);
         }
         if (validReadings |= (getNetdevUsage(&download, &upload) << 2))
         {
-            statCursor += sprintf(statCursor, " [DL: %.1fKB/s] [UL: %.1fKB/s]", download, upload);
+            statCursor += sprintf(statCursor, " [" ANSI_FG_DGRAY "Rx/Tx: %.1fKB/s / %.1fKB/s" ANSI_RESET_ALL "]", download, upload);
         }
     }
 
