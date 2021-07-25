@@ -294,13 +294,14 @@ bool getNetdevUsage(float* download, float* upload)
 
     while (fgets(devLine, sizeof(devLine), fp))
     {
-        if (*(devLine + 6) == ':')
+        // Ignores all of the table title rows, and the loopback device
+        if (*(devLine + 4) != 'l' && *(devLine + 5) != 'o' && *(devLine + 6) == ':')
         {
             sscanf(devLine + 7, "%llu %*u %*u %*u %*u %*u %*u %*u " 
                                 "%llu %*u %*u %*u %*u %*u %*u %*u", &bytesDown, &bytesUp);
             newReading.bytesDown += bytesDown;
             newReading.bytesUp += bytesUp;
-            fprintf(debugFile, "Read line, bytesDown %llu, bytesUp %llu\n", bytesDown, bytesUp);
+            //fprintf(debugFile, "Read line, bytesDown %llu, bytesUp %llu\n", bytesDown, bytesUp);
         }
 	}
 	fclose(fp);
