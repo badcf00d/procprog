@@ -47,6 +47,7 @@ int countDigits(int n);
 int min(int a, int b);
 int max(int a, int b);
 int setProgramName(char* name);
+const char** getArgs(int argc, char** argv);
 noreturn void showUsage(int status);
 noreturn void showVersion(int status);
 noreturn void showError(int status, bool shouldShowUsage, const char* format, ...);

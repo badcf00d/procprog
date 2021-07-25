@@ -8,6 +8,7 @@
 #include <pthread.h>
 #include <limits.h>
 #include <string.h>
+#include <getopt.h>
 #if __linux__
 #include <sys/prctl.h>
 #endif
@@ -45,6 +46,60 @@ int setProgramName(char* name)
 #endif
 
     return retVal;
+}
+
+
+const char** getArgs(int argc, char** argv)
+{
+    int optc;
+    bool append = false;
+    char* outFilename = NULL;
+    FILE* outFile = stderr;
+    static struct option longOpts[] =
+    {
+        {"help", no_argument, NULL, 'h'},
+        {"version", no_argument, NULL, 'V'},
+        {"append", no_argument, NULL, 'a'},
+        {"output-file", required_argument, NULL, 'o'},
+        {NULL, no_argument, NULL, 0}
+    };
+    
+    
+    while ((optc = getopt_long(argc, argv, "+aho:v", longOpts, (int*) 0)) != EOF)
+    {
+        switch (optc)
+        {
+        case 'h':
+            showUsage(EXIT_SUCCESS);        
+        case 'v':
+            showVersion(EXIT_SUCCESS);        
+        case 'a':
+            append = true;
+            break;
+        case 'o':
+            outFilename = optarg;
+            break;
+        default:
+            showUsage(EXIT_FAILURE);
+        }
+    }
+
+    if (optind == argc)
+    {
+        showError(EXIT_FAILURE, true, "Can't find a program to run, optind = %d\n\n", optind);
+    }
+
+    if (outFilename)
+    {
+        outFile = fopen(outFilename, (append) ? "a" : "w");
+
+        if (outFile == NULL)
+        {
+            showError(EXIT_FAILURE, false, "Couldn't open file: %s\n", outFilename);
+        }
+    }
+
+    return (const char **)&argv[optind];
 }
 
 

@@ -6,7 +6,6 @@
 #include <limits.h>
 #include <time.h>
 #include <sys/time.h>
-#include <getopt.h>
 #include <errno.h>
 #include <pthread.h>
 #include <sys/ioctl.h>
@@ -260,83 +259,6 @@ static void readLoop(int procStdOut[2])
 
 
 
-static const char** getArgs(int argc, char** argv)
-{
-    int optc;
-    bool append = false;
-    char* outFilename = NULL;
-    FILE* outFile = stderr;
-    static struct option longOpts[] =
-    {
-        {"help", no_argument, NULL, 'h'},
-        {"version", no_argument, NULL, 'V'},
-        {"append", no_argument, NULL, 'a'},
-        {"output-file", required_argument, NULL, 'o'},
-        {NULL, no_argument, NULL, 0}
-    };
-    
-    
-    while ((optc = getopt_long(argc, argv, "+aho:v", longOpts, (int*) 0)) != EOF)
-    {
-        switch (optc)
-        {
-        case 'h':
-            showUsage(EXIT_SUCCESS);        
-        case 'v':
-            showVersion(EXIT_SUCCESS);        
-        case 'a':
-            append = true;
-            break;
-        case 'o':
-            outFilename = optarg;
-            break;
-        default:
-            showUsage(EXIT_FAILURE);
-        }
-    }
-
-    if (optind == argc)
-    {
-        showError(EXIT_FAILURE, true, "Can't find a program to run, optind = %d\n\n", optind);
-    }
-
-    if (outFilename)
-    {
-        outFile = fopen(outFilename, (append) ? "a" : "w");
-
-        if (outFile == NULL)
-        {
-            showError(EXIT_FAILURE, false, "Couldn't open file: %s\n", outFilename);
-        }
-    }
-
-    return (const char **)&argv[optind];
-}
-
-
-
-static void sigintHandler(int sigNum) 
-{
-    struct timespec timeDiff;
-    struct timespec procEndTime;
-    (void)sigNum;
-
-    fclose(debugFile);
-
-    clock_gettime(CLOCK_MONOTONIC, &procEndTime);
-    timespecsub(&procEndTime, &procStartTime, &timeDiff);
-
-    tidyStats();
-    fprintf(stderr, "\n(%s) SIGINT after %ld.%03lds\n",
-                        childProcessName,
-                        timeDiff.tv_sec, 
-                        NSEC_TO_MSEC(timeDiff.tv_nsec));
-
-    exit(EXIT_SUCCESS);
-}
-
-
-
 static void* redrawThread(void* arg)
 {
     struct timespec currentTime;
@@ -392,32 +314,32 @@ static void sigwinchHandler(int sig)
 }
 
 
-
-int main(int argc, char **argv)
+static void sigintHandler(int sigNum) 
 {
-    struct timespec procEndTime;
     struct timespec timeDiff;
-    const char** commandLine;
-    int procStdOut[2];
-    int procStdErr[2];
-    pid_t pid;
+    struct timespec procEndTime;
+    (void)sigNum;
+
+    fclose(debugFile);
+
+    clock_gettime(CLOCK_MONOTONIC, &procEndTime);
+    timespecsub(&procEndTime, &procStartTime, &timeDiff);
+
+    tidyStats();
+    fprintf(stderr, "\n(%s) SIGINT after %ld.%03lds\n",
+                        childProcessName,
+                        timeDiff.tv_sec, 
+                        NSEC_TO_MSEC(timeDiff.tv_nsec));
+
+    exit(EXIT_SUCCESS);
+}
+
+
+
+static void setupInterupts(void)
+{
     struct sigaction intCatch;
     struct sigaction winchCatch;
-    pthread_t threadId;
-
-    setProgramName(argv[0]);
-    commandLine = getArgs(argc, argv);
-    childProcessName = commandLine[0];
-    pipe(procStdOut);
-    pipe(procStdErr);
-    sem_init(&outputMutex, 0, 1);
-    sem_init(&redrawMutex, 0, 0);
-    debugFile = fopen(DEBUG_FILE, "w");
-    setvbuf(debugFile, NULL, _IONBF, 0);
-    fprintf(debugFile, "Starting...\n");
-
-    ioctl(0, TIOCGWINSZ, &termSize);
-    clock_gettime(CLOCK_MONOTONIC, &procStartTime);
 
     sigemptyset(&intCatch.sa_mask);
     intCatch.sa_flags = 0;
@@ -430,6 +352,37 @@ int main(int argc, char **argv)
     winchCatch.sa_handler = sigwinchHandler;
     if (sigaction(SIGWINCH, &winchCatch, NULL) < 0)
         showError(EXIT_FAILURE, false, "sigaction for SIGWINCH failed\n");
+}
+
+
+
+int main(int argc, char **argv)
+{
+    struct timespec procEndTime;
+    struct timespec timeDiff;
+    const char** commandLine;
+    int procStdOut[2];
+    int procStdErr[2];
+    pid_t pid;
+    pthread_t threadId;
+
+    setProgramName(argv[0]);
+    commandLine = getArgs(argc, argv);
+    childProcessName = commandLine[0];
+
+    pipe(procStdOut);
+    pipe(procStdErr);
+
+    sem_init(&outputMutex, 0, 1);
+    sem_init(&redrawMutex, 0, 0);
+
+    debugFile = fopen(DEBUG_FILE, "w");
+    setvbuf(debugFile, NULL, _IONBF, 0);
+    fprintf(debugFile, "Starting...\n");
+
+    ioctl(0, TIOCGWINSZ, &termSize);
+    clock_gettime(CLOCK_MONOTONIC, &procStartTime);
+    setupInterupts();
 
     pid = fork();
     if (pid < 0)
