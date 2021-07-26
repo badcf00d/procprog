@@ -152,6 +152,9 @@ noreturn void showError(int status, bool shouldShowUsage, const char* format, ..
 // On linux this will always be false on the first call
 bool getCPUUsage(float* usage)
 {
+    if (usage == NULL)
+        return false;
+
 #ifdef __APPLE__
     mach_msg_type_number_t count;
     host_cpu_load_info_data_t r_load;
@@ -170,6 +173,7 @@ bool getCPUUsage(float* usage)
     FILE *fp;
     char* retVal;
     char statLine[256]; // Theoretically this could be up to ~220 characters, usually ~50
+    float interval, idleTime;
     struct procStat statBuffer;
     struct cpuStat newReading;
     static struct cpuStat oldReading;
@@ -199,27 +203,22 @@ bool getCPUUsage(float* usage)
     #error "Don't have a CPU usage implemenatation for this OS"
 #endif
 
-    if ((newReading.tBusy + newReading.tIdle) == 0)
-    {
-        return false;
-    }
-    if ((oldReading.tBusy + oldReading.tIdle) == 0)
+    if ((oldReading.tBusy == 0) && (oldReading.tIdle == 0))
     {
         memcpy(&oldReading, &newReading, sizeof(oldReading));
         return false;
-    }
-    else if (usage != NULL)
-    {
-        unsigned long long intervalTime = (newReading.tBusy + newReading.tIdle) - (oldReading.tBusy + oldReading.tIdle);
-        unsigned long long idleTime = newReading.tIdle - oldReading.tIdle;
-        *usage = (((float)intervalTime - idleTime) / intervalTime) * 100;
-
-        memcpy(&oldReading, &newReading, sizeof(oldReading));
-        return true;
     }
     else
     {
-        return false;
+        interval = (newReading.tBusy + newReading.tIdle) - (oldReading.tBusy + oldReading.tIdle);
+        idleTime = newReading.tIdle - oldReading.tIdle;
+
+        if (interval <= 0)
+            return false;
+
+        *usage = ((interval - idleTime) / interval) * 100;
+        memcpy(&oldReading, &newReading, sizeof(oldReading));
+        return true;
     }
 }
 
@@ -228,6 +227,9 @@ bool getCPUUsage(float* usage)
 
 bool getMemUsage(float* usage)
 {
+    if (usage == NULL)
+        return false;
+
 #ifdef __APPLE__
     // TODO
 #elif __linux__
@@ -275,6 +277,12 @@ bool getMemUsage(float* usage)
 
 bool getNetdevUsage(float* download, float* upload)
 {
+    if ((download == NULL) || (upload == NULL))
+        return false;
+
+#ifdef __APPLE__
+    // TODO
+#elif __linux__
     static struct netDevReading oldReading;
     struct netDevReading newReading = {0};
     unsigned long long bytesDown, bytesUp;
@@ -283,7 +291,7 @@ bool getNetdevUsage(float* download, float* upload)
     float interval;
 	FILE *fp;
 
-
+    memset(&newReading, 0, sizeof(newReading));
     clock_gettime(CLOCK_MONOTONIC, &newReading.time);
 
     fp = fopen("/proc/net/dev", "r");
@@ -305,6 +313,9 @@ bool getNetdevUsage(float* download, float* upload)
         }
 	}
 	fclose(fp);
+#else
+    #error "Don't have a CPU usage implemenatation for this OS"
+#endif
 
     if ((newReading.bytesDown == 0) && (newReading.bytesUp == 0))
     {
@@ -319,6 +330,11 @@ bool getNetdevUsage(float* download, float* upload)
     {
         timespecsub(&newReading.time, &oldReading.time, &timeDiff);
         interval = timeDiff.tv_sec + (timeDiff.tv_nsec * 1e-9);
+
+        if ((interval <= 0) || 
+            (oldReading.bytesDown > newReading.bytesDown) || 
+            (oldReading.bytesUp > newReading.bytesUp))
+            return false;
 
         bytesDown = newReading.bytesDown - oldReading.bytesDown;
         bytesUp = newReading.bytesUp - oldReading.bytesUp;
