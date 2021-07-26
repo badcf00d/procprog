@@ -79,6 +79,12 @@ struct netDevReading
     unsigned long long bytesUp;
 };
 
+struct diskReading
+{
+    struct timespec time;
+    unsigned long tBusy;
+};
+
 
 struct cpuStat
 {
@@ -105,3 +111,4 @@ noreturn void showError(int status, bool shouldShowUsage, const char* format, ..
 bool getCPUUsage(float* usage);
 bool getMemUsage(float* usage);
 bool getNetdevUsage(float* download, float* upload);
+bool getDiskUsage(float* activity);

@@ -1,8 +1,9 @@
 void portable_tick_create(void (*callback)(), unsigned int sec, unsigned int nsec, bool once);
 
 
-#define MSEC_TO_NSEC(x) (x * 1000000L)
-#define NSEC_TO_MSEC(x) (x / 1000000L)
+#define MSEC_TO_NSEC(x) ((x) * 1000000L)
+#define NSEC_TO_MSEC(x) ((x) / 1000000L)
+#define SEC_TO_MSEC(x) ((x) * 1000)
 #define SECS_IN_DAY (24 * 60 * 60)
 
 

@@ -329,3 +329,64 @@ bool getNetdevUsage(float* download, float* upload)
         return true;
     }
 }
+
+
+
+bool getDiskUsage(float* activity)
+{
+    if (activity == NULL)
+        return false;
+
+#ifdef __APPLE__
+    // TODO
+#elif __linux__
+    static struct diskReading oldReading;
+    struct diskReading newReading;
+    struct timespec timeDiff;
+    unsigned long tBusy;
+    char devLine[256]; // should be no longer than ~120 characters
+    float interval;
+	FILE *fp;
+
+    memset(&newReading, 0, sizeof(newReading));
+    clock_gettime(CLOCK_MONOTONIC, &newReading.time);
+
+    fp = fopen("/proc/diskstats", "r");
+    if (fp == NULL)
+    {
+        return false;
+    }
+
+    while (fgets(devLine, sizeof(devLine), fp))
+    {
+        //fprintf(debugFile, "Read line, %s", devLine + 13);
+        if ((strncmp(devLine + 13, "sd", 2) == 0) || (strncmp(devLine + 13, "hd", 2) == 0))
+        {
+            sscanf(devLine + 13, "%*s %*u %*u %*u %*u %*u %*u %*u %*u %*u %lu", &tBusy);
+            newReading.tBusy += tBusy;
+            //fprintf(debugFile, "Read line, tBusy %lu\n", tBusy);
+        }
+	}
+	fclose(fp);
+#else
+    #error "Don't have a CPU usage implemenatation for this OS"
+#endif
+
+    if (oldReading.time.tv_sec == 0)
+    {
+        memcpy(&oldReading, &newReading, sizeof(oldReading));
+        return false;
+    }
+    else
+    {
+        timespecsub(&newReading.time, &oldReading.time, &timeDiff);
+        interval = SEC_TO_MSEC(timeDiff.tv_sec + (timeDiff.tv_nsec * 1e-9));
+
+        if ((interval <= 0) || (oldReading.tBusy > newReading.tBusy))
+            return false;
+
+        *activity = (100 * (newReading.tBusy - oldReading.tBusy)) / interval;
+        memcpy(&oldReading, &newReading, sizeof(oldReading));
+        return true;
+    }
+}
