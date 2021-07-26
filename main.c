@@ -291,6 +291,7 @@ static void* redrawThread(void* arg)
         {
             returnToStartLine(true);
         }
+        tidyStats();
 
 debounce:
         clock_gettime(CLOCK_REALTIME, &currentTime);
@@ -305,7 +306,7 @@ debounce:
             goto debounce;
         }
 
-        printStats(false, true);
+        printStats(true, true);
 
         if (inputBuffer)
         {
