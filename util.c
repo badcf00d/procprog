@@ -65,13 +65,13 @@ const char** getArgs(int argc, char** argv)
     };
     
     
-    while ((optc = getopt_long(argc, argv, "+aho:v", longOpts, (int*) 0)) != EOF)
+    while ((optc = getopt_long(argc, argv, "+aho:V", longOpts, (int*) 0)) != EOF)
     {
         switch (optc)
         {
         case 'h':
             showUsage(EXIT_SUCCESS);        
-        case 'v':
+        case 'V':
             showVersion(EXIT_SUCCESS);        
         case 'a':
             append = true;
@@ -109,7 +109,7 @@ noreturn void showUsage(int status)
     puts("Run COMMAND, showing just the most recently output line\n");
 
     puts("-h, --help            display this help and exit");
-    puts("-v, --version         output version information and exit");
+    puts("-V, --version         output version information and exit");
     puts("-a, --append          with -o FILE, append instead of overwriting");
     puts("-o, --output=FILE     write to FILE instead of stderr");
 
@@ -258,7 +258,7 @@ bool getMemUsage(float* usage)
 	}
 	fclose(fp);
 #else
-    #error "Don't have a CPU usage implemenatation for this OS"
+    #error "Don't have a memory usage implemenatation for this OS"
 #endif
 
     if ((fieldsFound == 0b11) && (memTotal != 0))
@@ -314,7 +314,7 @@ bool getNetdevUsage(float* download, float* upload)
 	}
 	fclose(fp);
 #else
-    #error "Don't have a CPU usage implemenatation for this OS"
+    #error "Don't have a network usage implemenatation for this OS"
 #endif
 
     if ((newReading.bytesDown == 0) && (newReading.bytesUp == 0))
@@ -385,7 +385,7 @@ bool getDiskUsage(float* activity)
 	}
 	fclose(fp);
 #else
-    #error "Don't have a CPU usage implemenatation for this OS"
+    #error "Don't have a disk usage implemenatation for this OS"
 #endif
 
     if (oldReading.time.tv_sec == 0)

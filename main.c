@@ -51,8 +51,8 @@ static char* inputBuffer;
 static void returnToStartLine(bool clearText)
 {
     unsigned numLines = numCharacters / (termSize.ws_col + 1);
-    fprintf(debugFile, "height: %d, width: %d, numChar: %d, numLines = %d\n", 
-                termSize.ws_row, termSize.ws_col, numCharacters, numLines);
+    //fprintf(debugFile, "height: %d, width: %d, numChar: %d, numLines = %d\n", 
+    //            termSize.ws_row, termSize.ws_col, numCharacters, numLines);
 
     for (unsigned i = 0; i < numLines; i++)
     {
@@ -281,6 +281,7 @@ static void* redrawThread(void* arg)
         .tv_nsec = MSEC_TO_NSEC(500)
     };
     int retval;
+    (void)(arg);
     
     while (1)
     {
@@ -302,7 +303,7 @@ debounce:
 
         if (retval == 0)
         {
-            fprintf(debugFile, "debounce! errno %d, revtal %d\n", errno, retval);
+            //fprintf(debugFile, "debounce! errno %d, revtal %d\n", errno, retval);
             goto debounce;
         }
 
@@ -312,7 +313,7 @@ debounce:
         {
             fputs(inputBuffer, stderr);
         }
-        fprintf(debugFile, "redraw done, errno %d\n", errno);
+        //fprintf(debugFile, "redraw done, errno %d\n", errno);
         sem_post(&outputMutex);
     }
     return NULL;
@@ -322,6 +323,7 @@ debounce:
 
 static void sigwinchHandler(int sig)
 {
+    (void)(sig);
     ioctl(0, TIOCGWINSZ, &termSize);
     sem_post(&redrawMutex);
     //fprintf(debugFile, "SIGWINCH raised, window size: %d rows / %d columns\n", termSize.ws_row, termSize.ws_col);

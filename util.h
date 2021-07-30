@@ -5,7 +5,7 @@
 #define AUTHORS "Peter Frost"
 #define PROGRAM_NAME "procprog"
 #define VERSION "0.1"
-#define BUILD_YEAR  (__DATE__ + 7)
+#define BUILD_YEAR  (&(__DATE__)[7])
 
 #define ANSI_BOLD        "\e[1m"
 #define ANSI_DIM         "\e[2m"
@@ -100,9 +100,6 @@ struct cpuStat
 };
 
 
-int countDigits(int n);
-int min(int a, int b);
-int max(int a, int b);
 int setProgramName(char* name);
 const char** getArgs(int argc, char** argv);
 noreturn void showUsage(int status);
