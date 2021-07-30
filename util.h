@@ -100,6 +100,7 @@ struct cpuStat
 };
 
 
+unsigned printable_strlen(const char *str);
 int setProgramName(char* name);
 const char** getArgs(int argc, char** argv);
 noreturn void showUsage(int status);

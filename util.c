@@ -25,6 +25,31 @@
 extern FILE* debugFile;
 
 
+unsigned printable_strlen(const char *str) 
+{
+    unsigned length = 0;
+    bool skip = false;
+
+    while (*str != '\0')
+    {
+        if (*str == '\e')
+            skip = true;
+
+        if (skip)
+        {
+            if (*str == 'm')
+                skip = false;
+        } 
+        else if ((*str >= ' ') && (*str <= '~'))
+            length++;
+
+        str++;
+    }
+    return length;
+}
+
+
+
 int setProgramName(char* name)
 {
     int retVal;

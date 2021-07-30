@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -112,15 +113,51 @@ static void advanceSpinner(void)
 
 
 
+
+static void addStatIfRoom(char* statOutput, const char* format, ...)
+{
+    unsigned prevLength = printable_strlen(statOutput);
+    char buffer[128] = {0};
+    va_list varArgs;
+
+    va_start(varArgs, format);
+    vsprintf(buffer, format, varArgs);
+    va_end(varArgs);
+    
+    if ((prevLength + printable_strlen(buffer)) < termSize.ws_col)
+        strcat(statOutput, buffer);
+}
+
+
+
+static char* getStatFormat(char* buffer, const char* format, float amber, float red, float stat)
+{    
+    if (stat >= red)
+        sprintf(buffer, " [" ANSI_FG_RED "%s" ANSI_RESET_ALL "]", format);
+    else if (stat >= amber)
+        sprintf(buffer, " [" ANSI_FG_YELLOW "%s" ANSI_RESET_ALL "]", format);
+    else
+        sprintf(buffer, " [" ANSI_FG_DGRAY "%s" ANSI_RESET_ALL "]", format);
+    
+    return buffer;
+}
+
+
+
 static void printStats(bool newLine, bool redraw)
 {
     struct timespec timeDiff;
     struct timespec currentTime;
-    char statOutput[150] = {0};
+    char statOutput[256] = {0};
+    char statFormat[128] = {0};
     char* statCursor = statOutput;
+    static float cpuUsage = __FLT_MAX__;
+    static float memUsage = __FLT_MAX__;
+    static float diskUsage = __FLT_MAX__;
+    static float download = __FLT_MAX__;
+    static float upload = __FLT_MAX__;    
     unsigned numLines = numCharacters / (termSize.ws_col + 1);
-    static float cpuUsage, memUsage, diskUsage, download, upload;
-    static unsigned char validReadings = 0;
+
 
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     timespecsub(&currentTime, &procStartTime, &timeDiff);
@@ -131,43 +168,27 @@ static void printStats(bool newLine, bool redraw)
                             (timeDiff.tv_sec % 60),
                             spinner);
 
-    if (redraw)
+    if (((cpuUsage != __FLT_MAX__) && redraw) || getCPUUsage(&cpuUsage))
     {
-        if (validReadings & 0b0001)
-        {
-            statCursor += sprintf(statCursor, CPU_USAGE_FORMAT, cpuUsage);
-        }
-        if (validReadings & 0b0010)
-        {
-            statCursor += sprintf(statCursor, MEM_USAGE_FORMAT, memUsage);
-        }
-        if (validReadings & 0b0100)
-        {
-            statCursor += sprintf(statCursor, NET_USAGE_FORMAT, download, upload);
-        }
-        if (validReadings & 0b1000)
-        {
-            statCursor += sprintf(statCursor, DISK_USAGE_FORMAT, diskUsage);
-        }
+        getStatFormat(statFormat, "CPU: %4.1f%%", 20, 80, cpuUsage);
+        addStatIfRoom(statOutput, statFormat, cpuUsage);
     }
-    else
+
+    if (((memUsage != __FLT_MAX__) && redraw) || getMemUsage(&memUsage))
     {
-        if (0b0001 & (validReadings |= getCPUUsage(&cpuUsage)))
-        {
-            statCursor += sprintf(statCursor, CPU_USAGE_FORMAT, cpuUsage);
-        }
-        if (0b0010 & (validReadings |= (getMemUsage(&memUsage) << 1)))
-        {
-            statCursor += sprintf(statCursor, MEM_USAGE_FORMAT, memUsage);
-        }
-        if (0b0100 & (validReadings |= (getNetdevUsage(&download, &upload) << 2)))
-        {
-            statCursor += sprintf(statCursor, NET_USAGE_FORMAT, download, upload);
-        }
-        if (0b1000 & (validReadings |= (getDiskUsage(&diskUsage) << 3)))
-        {
-            statCursor += sprintf(statCursor, DISK_USAGE_FORMAT, diskUsage);
-        }
+        getStatFormat(statFormat, "Mem: %4.1f%%", 60, 80, memUsage);
+        addStatIfRoom(statOutput, statFormat, memUsage);
+    }
+
+    if (((download != __FLT_MAX__) && (upload != __FLT_MAX__) && redraw) || getNetdevUsage(&download, &upload))
+    {
+        addStatIfRoom(statOutput, NET_USAGE_FORMAT, download, upload);
+    }
+
+    if (((diskUsage != __FLT_MAX__) && redraw) || getDiskUsage(&diskUsage))
+    {
+        getStatFormat(statFormat, "Disk: %4.1f%%", 20, 80, diskUsage);
+        addStatIfRoom(statOutput, statFormat, diskUsage);
     }
 
     if (newLine)
