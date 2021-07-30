@@ -1,4 +1,4 @@
-CC = gcc
+CC = clang
 EXE = procprog
 SRC_DIR = ./
 OBJ_DIR = ./obj
@@ -17,7 +17,7 @@ endif
 
 SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-CFLAGS = -Wall -Wvla -fverbose-asm
+CFLAGS = -Wall -Wextra -fverbose-asm
 
 ifeq ($(PREFIX),)
     PREFIX := /usr/local
