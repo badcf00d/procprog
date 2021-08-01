@@ -60,16 +60,17 @@ static void returnToStartLine(bool clearText)
     {
         if (clearText)
         {
-            fputs("\e[2K", stderr);
+            fputs("\e[2K", stdout);
         }
-        fputs("\e[1A", stderr);
+        fputs("\e[1A", stdout);
     }
 
     if (clearText)
     {
-        fputs("\e[2K", stderr);
+        fputs("\e[2K", stdout);
     }
-    fputs("\e[1G", stderr);
+    fputs("\e[1G", stdout);
+    fflush(stdout);
 }
 
 
@@ -77,17 +78,19 @@ static void gotoStatLine(void)
 {
     for (int i = 0; i < termSize.ws_row; i++)
     {
-        fputs("\e[1B\e[2K", stderr);
+        fputs("\e[1B\e[2K", stdout);
     }
-    fputs("\e[1B\e[1G", stderr);
+    fputs("\e[1B\e[1G", stdout);
+    fflush(stdout);
 }
 
 
 static void tidyStats(void)
 {
-    fputs("\e[s", stderr);
+    fputs("\e[s", stdout);
     gotoStatLine();
-    fputs("\e[u", stderr);
+    fputs("\e[u", stdout);
+    fflush(stdout);
 }
 
 
@@ -214,17 +217,19 @@ static void printStats(bool newLine, bool redraw)
     {
         if (numLines >= (termSize.ws_row - 2))
         {
-            fputs("\n\e[K\e[1S\e[A", stderr);
+            fputs("\n\e[K\e[1S\e[A", stdout);
         }
         else
         {
-            fputs("\n\e[K\n\e[A", stderr);
+            fputs("\n\e[K\n\e[A", stdout);
         }
     }
-    fputs("\e[s", stderr);
+    fflush(stdout);
+    fputs("\e[s", stdout);
     gotoStatLine();
-    fputs(statOutput, stderr);
-    fputs("\e[u", stderr);
+    fputs(statOutput, stdout);
+    fputs("\e[u", stdout);
+    fflush(stdout);
 }
 
 
@@ -251,7 +256,8 @@ static void readLoop(int procStdOut[2])
 
     // Set the cursor to out starting position
     sem_wait(&outputMutex);
-    fprintf(stderr, "\n\e[1A");
+    fputs("\n\e[1A", stdout);
+    fflush(stdout);
     sem_post(&outputMutex);
 
     portable_tick_create(tickCallback, 1, 0, false);
@@ -300,7 +306,9 @@ static void readLoop(int procStdOut[2])
                 printStats(true, true);
             }
 
-            putc(inputChar, stderr);
+            putchar(inputChar);
+            fflush(stdout);
+            //puts("test");
             //putc(inputChar, debugFile);
             //fprintf(debugFile, "   %d   \n", (numCharacters % termSize.ws_col));
 
@@ -351,7 +359,8 @@ debounce:
 
         if (inputBuffer)
         {
-            fputs(inputBuffer, stderr);
+            fputs(inputBuffer, stdout);
+            fflush(stdout);
         }
         //fprintf(debugFile, "redraw done, errno %d\n", errno);
         sem_post(&outputMutex);
@@ -382,7 +391,7 @@ static void sigintHandler(int sigNum)
     timespecsub(&procEndTime, &procStartTime, &timeDiff);
 
     tidyStats();
-    fprintf(stderr, "\n(%s) SIGINT after %ld.%03lds\n",
+    printf("\n(%s) SIGINT after %ld.%03lds\n",
                         childProcessName,
                         timeDiff.tv_sec, 
                         NSEC_TO_MSEC(timeDiff.tv_nsec));
@@ -478,7 +487,7 @@ int main(int argc, char **argv)
         timespecsub(&procEndTime, &procStartTime, &timeDiff);
 
         tidyStats();
-        fprintf(stderr, "\e[1G\e[2K(%s) finished in %ld.%03lds\n",
+        printf("\e[1G\e[2K(%s) finished in %ld.%03lds\n",
                         childProcessName,
                         timeDiff.tv_sec, 
                         NSEC_TO_MSEC(timeDiff.tv_nsec));
