@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <termios.h>
+#include <printf.h>
 
 #include "timer.h"
 #include "util.h"
@@ -130,11 +131,28 @@ static void addStatIfRoom(char* statOutput, const char* format, ...)
 
 
 
-static char* getStatFormat(char* buffer, const char* format, float amber, float red, float stat)
+static char* getStatFormat(char* buffer, const char* format, double amberVal, double redVal, ...)
 {    
-    if (stat >= red)
+    size_t numStats = parse_printf_format(format, 0, NULL);
+    bool amber = false;
+    bool red = false;
+    va_list varArgs;
+    float stat;
+
+    va_start(varArgs, redVal);
+    for (; numStats > 0; numStats--)
+    {
+        stat = va_arg(varArgs, double);
+        if (stat >= redVal)
+            red = true;
+        else if (stat >= amberVal)
+            amber = true;
+    }
+    va_end(varArgs);
+    
+    if (red)
         sprintf(buffer, " [" ANSI_FG_RED "%s" ANSI_RESET_ALL "]", format);
-    else if (stat >= amber)
+    else if (amber)
         sprintf(buffer, " [" ANSI_FG_YELLOW "%s" ANSI_RESET_ALL "]", format);
     else
         sprintf(buffer, " [" ANSI_FG_DGRAY "%s" ANSI_RESET_ALL "]", format);
@@ -182,7 +200,8 @@ static void printStats(bool newLine, bool redraw)
 
     if (((download != __FLT_MAX__) && (upload != __FLT_MAX__) && redraw) || getNetdevUsage(&download, &upload))
     {
-        addStatIfRoom(statOutput, NET_USAGE_FORMAT, download, upload);
+        getStatFormat(statFormat, "Rx/Tx: %4.1fKB/s / %.1fKB/s", 1000, 100000, download, upload);
+        addStatIfRoom(statOutput, statFormat, download, upload);
     }
 
     if (((diskUsage != __FLT_MAX__) && redraw) || getDiskUsage(&diskUsage))
