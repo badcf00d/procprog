@@ -17,6 +17,7 @@
 #include <string.h>
 #include <termios.h>
 #include <printf.h>
+#include <sys/wait.h>
 
 #include "timer.h"
 #include "util.h"
@@ -248,11 +249,15 @@ static void tickCallback()
 
 
 
-static void readLoop(int procStdOut[2])
+static void* readLoop(void* arg)
 {
     char inputChar;
     inputBuffer = (char*) calloc(sizeof(char), 2048);
     bool newLine = false;
+    int procStdOut[2] = {
+        *((int*)&arg[0]),
+        *((int*)&arg[1]),
+    };
 
     // Set the cursor to out starting position
     sem_wait(&outputMutex);
@@ -308,14 +313,12 @@ static void readLoop(int procStdOut[2])
 
             putchar(inputChar);
             fflush(stdout);
-            //puts("test");
-            //putc(inputChar, debugFile);
-            //fprintf(debugFile, "   %d   \n", (numCharacters % termSize.ws_col));
 
             numCharacters++;
             sem_post(&outputMutex);
         }
     }
+    return NULL;
 }
 
 
@@ -421,15 +424,84 @@ static void setupInterupts(void)
 
 
 
-int main(int argc, char **argv)
+noreturn static int runCommand(int procStdOut[2], int procStdErr[2], const char** commandLine)
+{
+    const char* command;
+
+    close(procStdOut[0]);
+    close(procStdErr[0]);
+    // TODO: pipe stderr into stdout
+    dup2(procStdOut[1], STDOUT_FILENO);
+    dup2(procStdErr[1], STDERR_FILENO);
+    close(procStdOut[1]);
+    close(procStdErr[1]);
+
+    command = commandLine[0];
+    int status_code = execvp(command, (char *const *)commandLine);
+    showError(EXIT_FAILURE, false, "cannot run %s, execvp returned %d\n", command, status_code);
+    /* does not return */
+}
+
+
+static void readOutput(int procStdOut[2], int procStdErr[2])
 {
     struct timespec procEndTime;
     struct timespec timeDiff;
+    pthread_t threadId, readThread;
+    int exitStatus;
+
+    close(procStdOut[1]);
+    close(procStdErr[1]);
+
+    if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
+    {
+        showError(EXIT_FAILURE, false, "pthread_create failed\n");
+    }
+    
+    if (pthread_create(&readThread, NULL, &readLoop, procStdOut) != 0)
+    {
+        showError(EXIT_FAILURE, false, "pthread_create failed\n");
+    }
+
+    wait(&exitStatus);
+
+    //TODO use reuse_start / end
+    clock_gettime(CLOCK_MONOTONIC, &procEndTime);
+    timespecsub(&procEndTime, &procStartTime, &timeDiff);
+
+    tidyStats();
+
+    if (WIFSTOPPED(exitStatus))
+    {
+        printf("\e[1G\e[2K(%s) stopped by signal %d in %ld.%03lds\n",
+                childProcessName, WSTOPSIG(exitStatus), timeDiff.tv_sec, NSEC_TO_MSEC(timeDiff.tv_nsec));
+    }
+    else if (WIFSIGNALED(exitStatus))
+    {
+        printf("\e[1G\e[2K(%s) terminated by signal %d in %ld.%03lds\n",
+                childProcessName, WTERMSIG(exitStatus), timeDiff.tv_sec, NSEC_TO_MSEC(timeDiff.tv_nsec));
+    }
+    else if (WIFEXITED(exitStatus) && WEXITSTATUS(exitStatus))
+    {
+        printf("\e[1G\e[2K(%s) exited with non-zero status %d in %ld.%03lds\n",
+                childProcessName, WEXITSTATUS(exitStatus), timeDiff.tv_sec, NSEC_TO_MSEC(timeDiff.tv_nsec));
+    }
+    else
+    {
+        printf("\e[1G\e[2K(%s) finished in %ld.%03lds\n",
+                childProcessName, timeDiff.tv_sec, NSEC_TO_MSEC(timeDiff.tv_nsec));
+    }
+}
+
+
+
+int main(int argc, char **argv)
+{
     const char** commandLine;
     int procStdOut[2];
     int procStdErr[2];
     pid_t pid;
-    pthread_t threadId;
+
 
     setProgramName(argv[0]);
     commandLine = getArgs(argc, argv);
@@ -456,41 +528,11 @@ int main(int argc, char **argv)
     }
     else if (pid == 0)
     {
-        close(procStdOut[0]);    // close reading end in the child
-        close(procStdErr[0]);    // close reading end in the child
-
-        dup2(procStdOut[1], STDOUT_FILENO);  // send stdout to the pipe
-        dup2(procStdErr[1], STDERR_FILENO);  // send stderr to the pipe
-
-        close(procStdOut[1]);    // this descriptor is no longer needed
-        close(procStdErr[1]);    // this descriptor is no longer needed
-
-        const char* command = commandLine[0];
-
-        int status_code = execvp(command, (char *const *)commandLine);
-        showError(EXIT_FAILURE, false, "cannot run %s, execvp returned %d\n", command, status_code);
-        return 1;
+        runCommand(procStdOut, procStdErr, commandLine);
     }
     else
     {
-        close(procStdOut[1]);  // close the write end of the pipe in the parent
-        close(procStdErr[1]);  // close the write end of the pipe in the parent
-
-        if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
-        {
-            showError(EXIT_FAILURE, false, "pthread_create failed\n");
-        }
-
-        readLoop(procStdOut);
-
-        clock_gettime(CLOCK_MONOTONIC, &procEndTime);
-        timespecsub(&procEndTime, &procStartTime, &timeDiff);
-
-        tidyStats();
-        printf("\e[1G\e[2K(%s) finished in %ld.%03lds\n",
-                        childProcessName,
-                        timeDiff.tv_sec, 
-                        NSEC_TO_MSEC(timeDiff.tv_nsec));
+        readOutput(procStdOut, procStdErr);
     }
 
     sem_destroy(&outputMutex);

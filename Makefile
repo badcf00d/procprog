@@ -17,7 +17,7 @@ endif
 
 SRC = $(wildcard $(SRC_DIR)/*.c)
 OBJ = $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-CFLAGS = -Wall -Wextra -fverbose-asm
+CFLAGS = -Wall -Wextra -fverbose-asm -flto
 
 ifeq ($(PREFIX),)
     PREFIX := /usr/local
