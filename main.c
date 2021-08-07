@@ -268,7 +268,7 @@ static void* readLoop(void* arg)
     portable_tick_create(tickCallback, 1, 0, false);
 #if __linux__
     // CPU usage needs to be taken over a time interval
-    portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(10), true);
+    portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(50), true);
 #endif
 
     while (read(procStdOut[0], &inputChar, 1) > 0)
@@ -394,8 +394,10 @@ static void sigintHandler(int sigNum)
     timespecsub(&procEndTime, &procStartTime, &timeDiff);
 
     tidyStats();
-    printf("\n(%s) SIGINT after %ld.%03lds\n",
+    printf("\n(%s) %s (signal %d) after %ld.%03lds\n",
                         childProcessName,
+                        strsignal(sigNum),
+                        sigNum,
                         timeDiff.tv_sec, 
                         NSEC_TO_MSEC(timeDiff.tv_nsec));
 
@@ -414,6 +416,10 @@ static void setupInterupts(void)
     intCatch.sa_handler = sigintHandler;
     if (sigaction(SIGINT, &intCatch, NULL) < 0)
         showError(EXIT_FAILURE, false, "sigaction for SIGINT failed\n");
+    if (sigaction(SIGTERM, &intCatch, NULL) < 0)
+        showError(EXIT_FAILURE, false, "sigaction for SIGTERM failed\n");
+    if (sigaction(SIGQUIT, &intCatch, NULL) < 0)
+        showError(EXIT_FAILURE, false, "sigaction for SIGQUIT failed\n");
 
     sigemptyset(&winchCatch.sa_mask);
     winchCatch.sa_flags = SA_RESTART;
