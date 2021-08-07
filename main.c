@@ -172,7 +172,6 @@ static void printStats(bool newLine, bool redraw)
     struct timespec currentTime;
     char statOutput[256] = {0};
     char statFormat[128] = {0};
-    char* statCursor = statOutput;
     static float cpuUsage = __FLT_MAX__;
     static float memUsage = __FLT_MAX__;
     static float diskUsage = __FLT_MAX__;
@@ -184,7 +183,7 @@ static void printStats(bool newLine, bool redraw)
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     timespecsub(&currentTime, &procStartTime, &timeDiff);
 
-    statCursor += sprintf(statOutput, "\e[1G\e[K" ANSI_FG_CYAN "%02ld:%02ld:%02ld %c" ANSI_RESET_ALL, 
+    sprintf(statOutput, "\e[1G\e[K" ANSI_FG_CYAN "%02ld:%02ld:%02ld %c" ANSI_RESET_ALL, 
                             (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
                             (timeDiff.tv_sec % 3600) / 60, 
                             (timeDiff.tv_sec % 60),
@@ -255,8 +254,8 @@ static void* readLoop(void* arg)
     inputBuffer = (char*) calloc(sizeof(char), 2048);
     bool newLine = false;
     int procStdOut[2] = {
-        *((int*)&arg[0]),
-        *((int*)&arg[1]),
+        *(&((int*)arg)[0]),
+        *(&((int*)arg)[1]),
     };
 
     // Set the cursor to out starting position
@@ -281,7 +280,7 @@ static void* readLoop(void* arg)
             newLine = true;
         }
         else
-        {           
+        {
             sem_wait(&outputMutex);
 
             if (newLine == true)
