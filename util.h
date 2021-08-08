@@ -1,6 +1,11 @@
 #ifdef __APPLE__
 #include <mach/mach.h>
 #endif
+#include <stdbool.h>      // for bool
+#include <stdnoreturn.h>  // for noreturn
+#include <time.h>         // for timespec
+
+
 
 #define AUTHORS "Peter Frost"
 #define PROGRAM_NAME "procprog"

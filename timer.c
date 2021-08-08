@@ -1,17 +1,16 @@
 #ifdef __APPLE__
-
 #include <dispatch/dispatch.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-
 #else
-
-#include <time.h>
-#include <sys/time.h>
-#include <signal.h>
-#include <stdbool.h>
-
+#include <bits/types/sigevent_t.h>         // for sigev_notify_attributes
+#include <bits/types/struct_itimerspec.h>  // for itimerspec
+#include <bits/types/timer_t.h>            // for timer_t
+#include <signal.h>                        // for SIGEV_THREAD
+#include <stdbool.h>                       // for bool
+#include <sys/time.h>                      // for CLOCK_MONOTONIC
+#include <time.h>                          // for timer_create, timer_settime
 #endif
 
 

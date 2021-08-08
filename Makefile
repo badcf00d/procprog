@@ -24,7 +24,7 @@ ifeq ($(PREFIX),)
 endif
 
 
-.PHONY: clean all install uninstall
+.PHONY: clean all install uninstall iwyu
 
 
 all: $(EXE)
@@ -48,3 +48,7 @@ install: $(EXE)
 uninstall: 
 	@rm -f $(DESTDIR)$(PREFIX)/bin/$(EXE)
 	$(info Executable deleted from $(DESTDIR)$(PREFIX)/bin/$(EXE))
+
+iwyu: CC = include-what-you-use
+iwyu: clean
+iwyu: all

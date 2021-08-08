@@ -1,26 +1,24 @@
 #define _GNU_SOURCE
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdnoreturn.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <pthread.h>
-#include <limits.h>
-#include <string.h>
-#include <getopt.h>
-#if __linux__
-#include <sys/prctl.h>
-#endif
+#include <time.h>               // for timespec
+#include <bits/getopt_core.h>  // for optind, optarg
+#include <features.h>          // for __GLIBC_MINOR__, __GLIBC__
+#include <getopt.h>            // for no_argument, getopt_long, option, requ...
+#include <pthread.h>           // for pthread_self, pthread_setname_np
+#include <stdarg.h>            // for va_end, va_list, va_start
+#include <stdbool.h>           // for false, bool, true
+#include <stdio.h>             // for NULL, fopen, puts, sscanf, fclose, fgets
+#include <stdlib.h>            // for exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <stdnoreturn.h>       // for noreturn
+#include <string.h>            // for memcpy, strncmp, memset
+#include <sys/time.h>          // for CLOCK_MONOTONIC
+#include "timer.h"             // for timespecsub, SEC_TO_MSEC
+#include "util.h"
 #if __APPLE__
 #include <Availability.h>
 #include <sys/sysctl.h>
 #include <mach/mach.h>
 #endif
-
-#include "util.h"
-#include "timer.h"
-
 
 extern FILE* debugFile;
 

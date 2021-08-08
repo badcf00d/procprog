@@ -1,26 +1,23 @@
 #define _GNU_SOURCE
-#include <stdio.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdnoreturn.h>
-#include <unistd.h>
-#include <limits.h>
-#include <time.h>
-#include <sys/time.h>
-#include <errno.h>
-#include <pthread.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <semaphore.h>
-#include <signal.h>
-#include <pthread.h>
-#include <string.h>
-#include <termios.h>
-#include <printf.h>
-#include <sys/wait.h>
-
-#include "timer.h"
-#include "util.h"
+#include <ctype.h>        // for isprint
+#include <errno.h>        // for EINTR, errno
+#include <printf.h>       // for parse_printf_format
+#include <pthread.h>      // for pthread_create, pthread_t
+#include <semaphore.h>    // for sem_post, sem_wait, sem_destroy, sem_init
+#include <signal.h>       // for sigaction, sigemptyset, sa_handler, SA_RESTART
+#include <stdarg.h>       // for va_end, va_list, va_start, va_arg
+#include <stdbool.h>      // for false, true, bool
+#include <stdio.h>        // for fputs, fflush, stdout, printf, sprintf, NULL
+#include <stdlib.h>       // for EXIT_FAILURE, calloc, exit, WEXITSTATUS
+#include <stdnoreturn.h>  // for noreturn
+#include <string.h>       // for memset, strcat, strsignal
+#include <sys/ioctl.h>    // for winsize, ioctl, TIOCGWINSZ
+#include <sys/time.h>     // for CLOCK_MONOTONIC, CLOCK_REALTIME
+#include <sys/wait.h>     // for wait
+#include <time.h>         // for timespec, clock_gettime
+#include <unistd.h>       // for close, dup2, pipe, sleep, execvp, fork, read
+#include "timer.h"        // for portable_tick_create, NSEC_TO_MSEC, timespe...
+#include "util.h"         // for showError, ANSI_RESET_ALL, printable_strlen
 
 /*
 Useful shell one-liner to test:
