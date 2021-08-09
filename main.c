@@ -256,6 +256,18 @@ static void printChar(char character)
     putchar(character);
     numCharacters++;
 }
+
+
+static void tabToSpaces(void)
+{
+    printChar(' ');
+    while ((numCharacters % 8) != 0)
+    {
+        printChar(' ');
+    }
+}
+
+
 static void initConsole(void)
 {
     inputBuffer = (char*) calloc(sizeof(char), 2048);
@@ -307,6 +319,9 @@ static void* readLoop(void* arg)
                 newLine = false;
             }
 
+            if (inputChar == '\t')
+                tabToSpaces();
+            else if (isprint(inputChar))
                 printChar(inputChar);
 
             //fprintf(debugFile, "%.03f: inputchar = %c (%d) (%d)\n", 
