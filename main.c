@@ -234,18 +234,31 @@ static void tickCallback()
 
 
 
-
-
-
-static void* readLoop(void* arg)
+static void checkStats(void)
 {
-    char inputChar;
+    if (numCharacters > termSize.ws_col)
+    {
+        if ((numCharacters % termSize.ws_col) == 0)
+            printStats(true, true);
+    }
+    else if (numCharacters == termSize.ws_col)
+        printStats(true, true);
+}
+
+
+
+static void printChar(char character)
+{
+    if ((inputBuffer) && (numCharacters < 2048))
+        *(inputBuffer + numCharacters) = character;
+
+    checkStats();
+    putchar(character);
+    numCharacters++;
+}
+static void initConsole(void)
+{
     inputBuffer = (char*) calloc(sizeof(char), 2048);
-    bool newLine = false;
-    int procStdOut[2] = {
-        *(&((int*)arg)[0]),
-        *(&((int*)arg)[1]),
-    };
 
     // Set the cursor to out starting position
     sem_wait(&outputMutex);
@@ -258,7 +271,19 @@ static void* readLoop(void* arg)
     // CPU usage needs to be taken over a time interval
     portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(50), true);
 #endif
+}
 
+
+static void* readLoop(void* arg)
+{
+    char inputChar;
+    bool newLine = false;
+    int procStdOut[] = {
+        *(&((int*)arg)[0]),
+        *(&((int*)arg)[1])
+    };
+
+    initConsole();
     while (read(procStdOut[0], &inputChar, 1) > 0)
     {        
         if (inputChar == '\n')
@@ -282,27 +307,12 @@ static void* readLoop(void* arg)
                 newLine = false;
             }
 
-            if ((inputBuffer) && (numCharacters < 2048))
-            {
-                *(inputBuffer + numCharacters) = inputChar;
-            }
-            
-            if (numCharacters > termSize.ws_col)
-            {
-                if ((numCharacters % termSize.ws_col) == 0)
-                {
-                    printStats(true, true);
-                }
-            }
-            else if (numCharacters == termSize.ws_col)
-            {
-                printStats(true, true);
-            }
+                printChar(inputChar);
 
-            putchar(inputChar);
+            //fprintf(debugFile, "%.03f: inputchar = %c (%d) (%d)\n", 
+            //    proc_runtime(), inputChar, inputChar, isprint(inputChar));
+
             fflush(stdout);
-
-            numCharacters++;
             sem_post(&outputMutex);
         }
     }
