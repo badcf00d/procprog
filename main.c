@@ -21,10 +21,13 @@
 
 /*
 Useful shell one-liner to test:
-make && ./procprog perl -e '$| = 1; while (1) { for (1..20) { print("$_"); select(undef, undef, undef, 1); } print "\n"}'
+make && ./procprog perl -e '$| = 1; while (1) { for (1..80) { print("$_\t"); } print "\n"}'
+make && ./procprog perl -e '$| = 1; while (1) { for (1..20) { print("$_\t"); select(undef, undef, undef, 0.1); } print "\n"}'
+make && ./procprog perl -e '$| = 1; while (1) { for (1..20) { print("$_"); select(undef, undef, undef, 0.1); } print "\n"}'
 make && ./procprog perl -e '$| = 1; sleep(3); while (1) { for (1..3) { print("$_"); select(undef, undef, undef, 0.1); } print "\n"}'
 make && ./procprog perl -e '$| = 1; for (1..3) { for (1..3) { print("$_"); select(undef, undef, undef, 0.1); } print "\n"}'
 make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,$_,$_,$_,$_,$_,$_,$_,$_,$_,"); select(undef, undef, undef, 0.1); } print "\n"}'
+make && ./procprog perl -e '$| = 1; while (1) { for (1..30) { print("$_,$_,$_,$_,$_,$_,$_,$_,$_,$_,"); select(undef, undef, undef, 0.1); } print "\n"}'
 */
 
 #define TIMER_LENGTH 10
