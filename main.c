@@ -1,23 +1,23 @@
 #define _GNU_SOURCE
 #include <ctype.h>        // for isprint
 #include <errno.h>        // for EINTR, errno
-#include <printf.h>       // for parse_printf_format
 #include <pthread.h>      // for pthread_create, pthread_t
 #include <semaphore.h>    // for sem_post, sem_wait, sem_destroy, sem_init
 #include <signal.h>       // for sigaction, sigemptyset, sa_handler, SA_RESTART
-#include <stdarg.h>       // for va_end, va_list, va_start, va_arg
 #include <stdbool.h>      // for false, true, bool
-#include <stdio.h>        // for fputs, fflush, stdout, printf, sprintf, NULL
+#include <stdio.h>        // for fputs, printf, fflush, stdout, NULL, fclose
 #include <stdlib.h>       // for EXIT_FAILURE, calloc, exit, WEXITSTATUS
 #include <stdnoreturn.h>  // for noreturn
-#include <string.h>       // for memset, strcat, strsignal
-#include <sys/ioctl.h>    // for winsize, ioctl, TIOCGWINSZ
+#include <string.h>       // for memset, strsignal
+#include <sys/ioctl.h>    // for ioctl, winsize, TIOCGWINSZ
 #include <sys/time.h>     // for CLOCK_MONOTONIC, CLOCK_REALTIME
 #include <sys/wait.h>     // for wait
-#include <time.h>         // for timespec, clock_gettime
-#include <unistd.h>       // for close, dup2, pipe, sleep, execvp, fork, read
-#include "timer.h"        // for portable_tick_create, NSEC_TO_MSEC, timespe...
-#include "util.h"         // for showError, ANSI_RESET_ALL, printable_strlen
+#include <time.h>         // for clock_gettime, timespec
+#include <unistd.h>       // for close, dup2, pipe, execvp, fork, read, STDE...
+#include "graphics.h"     // for tidyStats, clearScreen, returnToStartLine
+#include "stats.h"        // for printStats, advanceSpinner
+#include "timer.h"        // for portable_tick_create, MSEC_TO_NSEC, timespe...
+#include "util.h"         // for showError, proc_runtime, getArgs, setProgra...
 
 /*
 Useful shell one-liner to test:
@@ -30,215 +30,20 @@ make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,$_,$_,$_
 make && ./procprog perl -e '$| = 1; while (1) { for (1..30) { print("$_,$_,$_,$_,$_,$_,$_,$_,$_,$_,"); select(undef, undef, undef, 0.1); } print "\n"}'
 */
 
-#define TIMER_LENGTH 10
-#define SPINNER_POS (TIMER_LENGTH + 2)
-#define OUTPUT_POS (SPINNER_POS + 2)
 #define DEBUG_FILE "debug.log"
-
-#define CPU_USAGE_FORMAT " [" ANSI_FG_DGRAY "CPU: %4.1f%%" ANSI_RESET_ALL "]"
-#define MEM_USAGE_FORMAT " [" ANSI_FG_DGRAY "Mem: %4.1f%%" ANSI_RESET_ALL "]"
-#define NET_USAGE_FORMAT " [" ANSI_FG_DGRAY "Rx/Tx: %4.1fKB/s / %.1fKB/s" ANSI_RESET_ALL "]"
-#define DISK_USAGE_FORMAT " [" ANSI_FG_DGRAY "Disk: %4.1f%%" ANSI_RESET_ALL "]"
 
 struct timespec procStartTime;
 FILE* debugFile;
-static unsigned numCharacters = 0;
-static volatile struct winsize termSize;
+unsigned numCharacters = 0;
+volatile struct winsize termSize;
+bool alternateBuffer = false;
+
 static sem_t outputMutex;
 static sem_t redrawMutex;
 static const char* childProcessName;
-static char spinner = '-';
 static char* inputBuffer;
-static bool alternateBuffer = false;
 
 
-static void returnToStartLine(bool clearText)
-{
-    unsigned numLines = numCharacters / (termSize.ws_col + 1);
-    //fprintf(debugFile, "height: %d, width: %d, numChar: %d, numLines = %d\n", 
-    //            termSize.ws_row, termSize.ws_col, numCharacters, numLines);
-
-    if (clearText)
-    {
-        for (unsigned i = 0; i < numLines; i++)
-        {
-            fputs("\e[2K\e[1A", stdout);
-        }
-        fputs("\e[2K\e[1G", stdout);        
-    }
-    else
-    {
-        printf("\e[%uA\e[1G", numLines);
-    }
-}
-
-
-static void gotoStatLine(void)
-{
-    // Clear screen below cursor, move to bottom of screen
-    fputs("\e[0J\e[9999;1H", stdout);
-}
-
-
-static void tidyStats(void)
-{
-    fputs("\e[s", stdout);
-    gotoStatLine();
-    fputs("\e[u", stdout);
-}
-
-static void clearScreen(void)
-{
-    fprintf(debugFile, "%.03f: height: %d, width: %d, numChar: %u\n", 
-                proc_runtime(), termSize.ws_row, termSize.ws_col, numCharacters);
-
-    if (alternateBuffer)
-    {
-        // Erase screen + saved lines
-        fputs("\e[2J\e[3J\e[1;1H", stdout);
-    }
-    else
-    {
-        returnToStartLine(false);
-        // Clears screen from cursor to end, switches to Alternate Screen Buffer
-        // Erases saved lines, sets cursor to top left
-        fputs("\e[0J\e[?1049h\e[3J\e[1;1H", stdout);
-        alternateBuffer = true;
-    }
-    fflush(stdout);
-}
-
-
-
-static void advanceSpinner(void)
-{
-    switch (spinner)
-    {
-        case '/':
-            spinner = '-';
-            break;
-        case '-':
-            spinner = '\\';
-            break;
-        case '\\':
-            spinner = '|';
-            break;
-        case '|':
-            spinner = '/';
-            break;
-    }
-}
-
-
-
-
-static void addStatIfRoom(char* statOutput, const char* format, ...)
-{
-    unsigned prevLength = printable_strlen(statOutput);
-    char buffer[128] = {0};
-    va_list varArgs;
-
-    va_start(varArgs, format);
-    vsprintf(buffer, format, varArgs);
-    va_end(varArgs);
-    
-    if ((prevLength + printable_strlen(buffer)) < termSize.ws_col)
-        strcat(statOutput, buffer);
-}
-
-
-
-static char* getStatFormat(char* buffer, const char* format, double amberVal, double redVal, ...)
-{    
-    size_t numStats = parse_printf_format(format, 0, NULL);
-    bool amber = false;
-    bool red = false;
-    va_list varArgs;
-    float stat;
-
-    va_start(varArgs, redVal);
-    for (; numStats > 0; numStats--)
-    {
-        stat = va_arg(varArgs, double);
-        if (stat >= redVal)
-            red = true;
-        else if (stat >= amberVal)
-            amber = true;
-    }
-    va_end(varArgs);
-    
-    if (red)
-        sprintf(buffer, " [" ANSI_FG_RED "%s" ANSI_RESET_ALL "]", format);
-    else if (amber)
-        sprintf(buffer, " [" ANSI_FG_YELLOW "%s" ANSI_RESET_ALL "]", format);
-    else
-        sprintf(buffer, " [" ANSI_FG_DGRAY "%s" ANSI_RESET_ALL "]", format);
-    
-    return buffer;
-}
-
-
-
-static void printStats(bool newLine, bool redraw)
-{
-    struct timespec timeDiff;
-    struct timespec currentTime;
-    char statOutput[256] = {0};
-    char statFormat[128] = {0};
-    static float cpuUsage = __FLT_MAX__;
-    static float memUsage = __FLT_MAX__;
-    static float diskUsage = __FLT_MAX__;
-    static float download = __FLT_MAX__;
-    static float upload = __FLT_MAX__;    
-    unsigned numLines = numCharacters / (termSize.ws_col + 1);
-
-    clock_gettime(CLOCK_MONOTONIC, &currentTime);
-    timespecsub(&currentTime, &procStartTime, &timeDiff);
-
-    sprintf(statOutput, "\e[1G\e[K" ANSI_FG_CYAN "%02ld:%02ld:%02ld %c" ANSI_RESET_ALL, 
-                            (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
-                            (timeDiff.tv_sec % 3600) / 60, 
-                            (timeDiff.tv_sec % 60),
-                            spinner);
-
-    if (((cpuUsage != __FLT_MAX__) && redraw) || getCPUUsage(&cpuUsage))
-    {
-        getStatFormat(statFormat, "CPU: %4.1f%%", 20, 80, cpuUsage);
-        addStatIfRoom(statOutput, statFormat, cpuUsage);
-    }
-
-    if (((memUsage != __FLT_MAX__) && redraw) || getMemUsage(&memUsage))
-    {
-        getStatFormat(statFormat, "Mem: %4.1f%%", 60, 80, memUsage);
-        addStatIfRoom(statOutput, statFormat, memUsage);
-    }
-
-    if (((download != __FLT_MAX__) && (upload != __FLT_MAX__) && redraw) || getNetdevUsage(&download, &upload))
-    {
-        getStatFormat(statFormat, "Rx/Tx: %4.1fKB/s / %.1fKB/s", 1000, 100000, download, upload);
-        addStatIfRoom(statOutput, statFormat, download, upload);
-    }
-
-    if (((diskUsage != __FLT_MAX__) && redraw) || getDiskUsage(&diskUsage))
-    {
-        getStatFormat(statFormat, "Disk: %4.1f%%", 20, 80, diskUsage);
-        addStatIfRoom(statOutput, statFormat, diskUsage);
-    }
-
-    if (newLine)
-    {
-        if (numLines >= (termSize.ws_row - 2))
-            fputs("\n\e[K\e[1S\e[A", stdout);
-        else
-            fputs("\n\e[K\n\e[A", stdout);
-    }
-
-    fputs("\e[s", stdout);
-    gotoStatLine();
-    fputs(statOutput, stdout);
-    fputs("\e[u", stdout);
-    fflush(stdout);
-}
 
 
 
@@ -379,19 +184,14 @@ debounce:
             continue;       /* Restart if interrupted by handler */
 
         if (retval == 0)
-        {
-            //fprintf(debugFile, "debounce! errno %d, revtal %d\n", errno, retval);
             goto debounce;
-        }
-
+        
         printStats(false, true);
-
         if (inputBuffer)
         {
             fputs(inputBuffer, stdout);
             fflush(stdout);
         }
-        //fprintf(debugFile, "redraw done, errno %d\n", errno);
         sem_post(&outputMutex);
     }
     return NULL;
