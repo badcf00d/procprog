@@ -345,7 +345,7 @@ static void* redrawThread(void* arg)
     struct timespec timeoutTime;
     struct timespec debounceTime = {
         .tv_sec = 0,
-        .tv_nsec = MSEC_TO_NSEC(500)
+        .tv_nsec = MSEC_TO_NSEC(300)
     };
     int retval;
     (void)(arg);
