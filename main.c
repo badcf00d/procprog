@@ -57,16 +57,12 @@ static void returnToStartLine(bool clearText)
     for (unsigned i = 0; i < numLines; i++)
     {
         if (clearText)
-        {
             fputs("\e[2K", stdout);
-        }
         fputs("\e[1A", stdout);
     }
 
     if (clearText)
-    {
         fputs("\e[2K", stdout);
-    }
     fputs("\e[1G", stdout);
     fflush(stdout);
 }
@@ -176,7 +172,6 @@ static void printStats(bool newLine, bool redraw)
     static float upload = __FLT_MAX__;    
     unsigned numLines = numCharacters / (termSize.ws_col + 1);
 
-
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     timespecsub(&currentTime, &procStartTime, &timeDiff);
 
@@ -213,14 +208,11 @@ static void printStats(bool newLine, bool redraw)
     if (newLine)
     {
         if (numLines >= (termSize.ws_row - 2))
-        {
             fputs("\n\e[K\e[1S\e[A", stdout);
-        }
         else
-        {
             fputs("\n\e[K\n\e[A", stdout);
-        }
     }
+
     fflush(stdout);
     fputs("\e[s", stdout);
     gotoStatLine();
@@ -369,9 +361,9 @@ debounce:
 
 
 
-static void sigwinchHandler(int sig)
+static void sigwinchHandler(int sigNum)
 {
-    (void)(sig);
+    (void)(sigNum);
     ioctl(0, TIOCGWINSZ, &termSize);
     sem_post(&redrawMutex);
     //fprintf(debugFile, "SIGWINCH raised, window size: %d rows / %d columns\n", termSize.ws_row, termSize.ws_col);
@@ -456,14 +448,10 @@ static void readOutput(int procStdOut[2], int procStdErr[2])
     close(procStdErr[1]);
 
     if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
-    {
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
-    }
     
     if (pthread_create(&readThread, NULL, &readLoop, procStdOut) != 0)
-    {
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
-    }
 
     wait(&exitStatus);
 
@@ -516,7 +504,7 @@ int main(int argc, char **argv)
     sem_init(&redrawMutex, 0, 0);
 
     debugFile = fopen(DEBUG_FILE, "w");
-    setvbuf(debugFile, NULL, _IONBF, 0);
+    //setvbuf(debugFile, NULL, _IONBF, 0);
     fprintf(debugFile, "Starting...\n");
 
     ioctl(0, TIOCGWINSZ, &termSize);
@@ -525,17 +513,11 @@ int main(int argc, char **argv)
 
     pid = fork();
     if (pid < 0)
-    {
         showError(EXIT_FAILURE, false, "fork failed\n");
-    }
     else if (pid == 0)
-    {
         runCommand(procStdOut, procStdErr, commandLine);
-    }
     else
-    {
         readOutput(procStdOut, procStdErr);
-    }
 
     sem_destroy(&outputMutex);
     sem_destroy(&redrawMutex);
