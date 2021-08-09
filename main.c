@@ -58,16 +58,18 @@ static void returnToStartLine(bool clearText)
     //fprintf(debugFile, "height: %d, width: %d, numChar: %d, numLines = %d\n", 
     //            termSize.ws_row, termSize.ws_col, numCharacters, numLines);
 
-    for (unsigned i = 0; i < numLines; i++)
-    {
-        if (clearText)
-            fputs("\e[2K", stdout);
-        fputs("\e[1A", stdout);
-    }
-
     if (clearText)
-        fputs("\e[2K", stdout);
-    fputs("\e[1G", stdout);
+    {
+        for (unsigned i = 0; i < numLines; i++)
+        {
+            fputs("\e[2K\e[1A", stdout);
+        }
+        fputs("\e[2K\e[1G", stdout);        
+    }
+    else
+    {
+        printf("\e[%uA\e[1G", numLines);
+    }
 }
 
 
@@ -87,22 +89,22 @@ static void tidyStats(void)
 
 static void clearScreen(void)
 {
-    unsigned numLines = numCharacters / (termSize.ws_col + 1);
     fprintf(debugFile, "%.03f: height: %d, width: %d, numChar: %u\n", 
                 proc_runtime(), termSize.ws_row, termSize.ws_col, numCharacters);
 
-    printf("\e[%uA\e[1G", numLines);
     if (alternateBuffer)
     {
-        fputs("\e[0J", stdout);
+        // Erase screen + saved lines
+        fputs("\e[2J\e[3J\e[1;1H", stdout);
     }
     else
     {
+        returnToStartLine(false);
         // Clears screen from cursor to end, switches to Alternate Screen Buffer
-        fputs("\e[0J\e[?1049h", stdout);
+        // Erases saved lines, sets cursor to top left
+        fputs("\e[0J\e[?1049h\e[3J\e[1;1H", stdout);
         alternateBuffer = true;
-    }    
-
+    }
     fflush(stdout);
 }
 
