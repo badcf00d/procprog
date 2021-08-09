@@ -49,6 +49,7 @@ static sem_t redrawMutex;
 static const char* childProcessName;
 static char spinner = '-';
 static char* inputBuffer;
+static bool alternateBuffer = false;
 
 
 static void returnToStartLine(bool clearText)
@@ -67,18 +68,13 @@ static void returnToStartLine(bool clearText)
     if (clearText)
         fputs("\e[2K", stdout);
     fputs("\e[1G", stdout);
-    fflush(stdout);
 }
 
 
 static void gotoStatLine(void)
 {
-    for (int i = 0; i < termSize.ws_row; i++)
-    {
-        fputs("\e[1B\e[2K", stdout);
-    }
-    fputs("\e[1B\e[1G", stdout);
-    fflush(stdout);
+    // Clear screen below cursor, move to bottom of screen
+    fputs("\e[0J\e[9999;1H", stdout);
 }
 
 
@@ -87,9 +83,28 @@ static void tidyStats(void)
     fputs("\e[s", stdout);
     gotoStatLine();
     fputs("\e[u", stdout);
-    fflush(stdout);
 }
 
+static void clearScreen(void)
+{
+    unsigned numLines = numCharacters / (termSize.ws_col + 1);
+    fprintf(debugFile, "%.03f: height: %d, width: %d, numChar: %u\n", 
+                proc_runtime(), termSize.ws_row, termSize.ws_col, numCharacters);
+
+    printf("\e[%uA\e[1G", numLines);
+    if (alternateBuffer)
+    {
+        fputs("\e[0J", stdout);
+    }
+    else
+    {
+        // Clears screen from cursor to end, switches to Alternate Screen Buffer
+        fputs("\e[0J\e[?1049h", stdout);
+        alternateBuffer = true;
+    }    
+
+    fflush(stdout);
+}
 
 
 
@@ -216,7 +231,6 @@ static void printStats(bool newLine, bool redraw)
             fputs("\n\e[K\n\e[A", stdout);
     }
 
-    fflush(stdout);
     fputs("\e[s", stdout);
     gotoStatLine();
     fputs(statOutput, stdout);
@@ -275,10 +289,9 @@ static void initConsole(void)
 {
     inputBuffer = (char*) calloc(sizeof(char), 2048);
 
-    // Set the cursor to out starting position
     sem_wait(&outputMutex);
-    fputs("\n\e[1A", stdout);
-    fflush(stdout);
+    fputs("\e[?25l", stdout);   // Hides cursor
+    fputs("\n\e[1A", stdout);   // Set the cursor to out starting position
     sem_post(&outputMutex);
 
     portable_tick_create(tickCallback, 1, 0, false);
@@ -354,12 +367,7 @@ static void* redrawThread(void* arg)
     {
         sem_wait(&redrawMutex);
         sem_wait(&outputMutex);
-
-        if (inputBuffer)
-        {
-            returnToStartLine(true);
-        }
-        tidyStats();
+        clearScreen();
 
 debounce:
         clock_gettime(CLOCK_REALTIME, &currentTime);
@@ -374,7 +382,7 @@ debounce:
             goto debounce;
         }
 
-        printStats(true, true);
+        printStats(false, true);
 
         if (inputBuffer)
         {
@@ -409,6 +417,11 @@ static void sigintHandler(int sigNum)
                         strsignal(sigNum),
                         sigNum,
                         proc_runtime());
+
+    if (alternateBuffer)
+        fputs("\e[?1049l", stdout); // Switch to normal screen buffer
+    fputs("\e[?25h", stdout);       // Shows cursor
+    fflush(stdout);
 
     exit(EXIT_SUCCESS);
 }
@@ -524,6 +537,11 @@ int main(int argc, char **argv)
         runCommand(procStdOut, procStdErr, commandLine);
     else
         readOutput(procStdOut, procStdErr);
+
+    if (alternateBuffer)
+        fputs("\e[?1049l", stdout); // Switch to normal screen buffer
+    fputs("\e[?25h", stdout);       // Shows cursor
+    fflush(stdout);
 
     sem_destroy(&outputMutex);
     sem_destroy(&redrawMutex);
