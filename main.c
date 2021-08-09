@@ -37,10 +37,10 @@ make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,$_,$_,$_
 #define NET_USAGE_FORMAT " [" ANSI_FG_DGRAY "Rx/Tx: %4.1fKB/s / %.1fKB/s" ANSI_RESET_ALL "]"
 #define DISK_USAGE_FORMAT " [" ANSI_FG_DGRAY "Disk: %4.1f%%" ANSI_RESET_ALL "]"
 
-static struct timespec procStartTime;
+struct timespec procStartTime;
+FILE* debugFile;
 static unsigned numCharacters = 0;
 static volatile struct winsize termSize;
-FILE* debugFile;
 static sem_t outputMutex;
 static sem_t redrawMutex;
 static const char* childProcessName;
@@ -372,22 +372,15 @@ static void sigwinchHandler(int sigNum)
 
 static void sigintHandler(int sigNum) 
 {
-    struct timespec timeDiff;
-    struct timespec procEndTime;
     (void)sigNum;
-
     fclose(debugFile);
 
-    clock_gettime(CLOCK_MONOTONIC, &procEndTime);
-    timespecsub(&procEndTime, &procStartTime, &timeDiff);
-
     tidyStats();
-    printf("\n(%s) %s (signal %d) after %ld.%03lds\n",
+    printf("\n(%s) %s (signal %d) after %.03fs\n",
                         childProcessName,
                         strsignal(sigNum),
                         sigNum,
-                        timeDiff.tv_sec, 
-                        NSEC_TO_MSEC(timeDiff.tv_nsec));
+                        proc_runtime());
 
     exit(EXIT_SUCCESS);
 }
@@ -439,8 +432,6 @@ noreturn static int runCommand(int procStdOut[2], int procStdErr[2], const char*
 
 static void readOutput(int procStdOut[2], int procStdErr[2])
 {
-    struct timespec procEndTime;
-    struct timespec timeDiff;
     pthread_t threadId, readThread;
     int exitStatus;
 
@@ -454,33 +445,20 @@ static void readOutput(int procStdOut[2], int procStdErr[2])
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
 
     wait(&exitStatus);
-
-    //TODO use reuse_start / end
-    clock_gettime(CLOCK_MONOTONIC, &procEndTime);
-    timespecsub(&procEndTime, &procStartTime, &timeDiff);
-
     tidyStats();
 
     if (WIFSTOPPED(exitStatus))
-    {
-        printf("\e[1G\e[2K(%s) stopped by signal %d in %ld.%03lds\n",
-                childProcessName, WSTOPSIG(exitStatus), timeDiff.tv_sec, NSEC_TO_MSEC(timeDiff.tv_nsec));
-    }
+        printf("\e[1G\e[2K(%s) stopped by signal %d in %.03fs\n",
+                childProcessName, WSTOPSIG(exitStatus), proc_runtime());
     else if (WIFSIGNALED(exitStatus))
-    {
-        printf("\e[1G\e[2K(%s) terminated by signal %d in %ld.%03lds\n",
-                childProcessName, WTERMSIG(exitStatus), timeDiff.tv_sec, NSEC_TO_MSEC(timeDiff.tv_nsec));
-    }
+        printf("\e[1G\e[2K(%s) terminated by signal %d in %.03fs\n",
+                childProcessName, WTERMSIG(exitStatus), proc_runtime());
     else if (WIFEXITED(exitStatus) && WEXITSTATUS(exitStatus))
-    {
-        printf("\e[1G\e[2K(%s) exited with non-zero status %d in %ld.%03lds\n",
-                childProcessName, WEXITSTATUS(exitStatus), timeDiff.tv_sec, NSEC_TO_MSEC(timeDiff.tv_nsec));
-    }
+        printf("\e[1G\e[2K(%s) exited with non-zero status %d in %.03fs\n",
+                childProcessName, WEXITSTATUS(exitStatus), proc_runtime());
     else
-    {
-        printf("\e[1G\e[2K(%s) finished in %ld.%03lds\n",
-                childProcessName, timeDiff.tv_sec, NSEC_TO_MSEC(timeDiff.tv_nsec));
-    }
+        printf("\e[1G\e[2K(%s) finished in %.03fs\n",
+                childProcessName, proc_runtime());
 }
 
 

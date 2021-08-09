@@ -115,3 +115,4 @@ bool getCPUUsage(float* usage);
 bool getMemUsage(float* usage);
 bool getNetdevUsage(float* download, float* upload);
 bool getDiskUsage(float* activity);
+float proc_runtime(void);

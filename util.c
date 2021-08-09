@@ -20,6 +20,7 @@
 #include <mach/mach.h>
 #endif
 
+extern struct timespec procStartTime;
 extern FILE* debugFile;
 
 
@@ -44,6 +45,19 @@ unsigned printable_strlen(const char *str)
         str++;
     }
     return length;
+}
+
+
+
+float proc_runtime(void)
+{
+    struct timespec timeDiff;
+    struct timespec now;
+
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    timespecsub(&now, &procStartTime, &timeDiff);
+
+    return timeDiff.tv_sec + (timeDiff.tv_nsec * 1e-9);
 }
 
 
