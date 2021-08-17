@@ -113,13 +113,10 @@ static void* readLoop(void* arg)
 {
     char inputChar;
     bool newLine = false;
-    int procStdOut[] = {
-        *(&((int*)arg)[0]),
-        *(&((int*)arg)[1])
-    };
+    int procPipe = *(int*)arg;
 
     initConsole();
-    while (read(procStdOut[0], &inputChar, 1) > 0)
+    while (read(procPipe, &inputChar, 1) > 0)
     {        
         if (inputChar == '\n')
         {
@@ -254,37 +251,34 @@ static void setupInterupts(void)
 
 
 
-noreturn static int runCommand(int procStdOut[2], int procStdErr[2], const char** commandLine)
+noreturn static int runCommand(int procPipe[2], const char** commandLine)
 {
     const char* command;
+    int status_code;
+    dup2(STDOUT_FILENO, STDERR_FILENO);
+    dup2(procPipe[1], STDOUT_FILENO);    
+    close(procPipe[0]);    
+    close(procPipe[1]);
 
-    close(procStdOut[0]);
-    close(procStdErr[0]);
-    // TODO: pipe stderr into stdout
-    dup2(procStdOut[1], STDOUT_FILENO);
-    dup2(procStdErr[1], STDERR_FILENO);
-    close(procStdOut[1]);
-    close(procStdErr[1]);
 
     command = commandLine[0];
-    int status_code = execvp(command, (char *const *)commandLine);
+    status_code = execvp(command, (char *const *)commandLine);
     showError(EXIT_FAILURE, false, "cannot run %s, execvp returned %d\n", command, status_code);
     /* does not return */
 }
 
 
-static void readOutput(int procStdOut[2], int procStdErr[2])
+static void readOutput(int procPipe[2])
 {
     pthread_t threadId, readThread;
     int exitStatus;
 
-    close(procStdOut[1]);
-    close(procStdErr[1]);
+    close(procPipe[1]); // Close write end of fd, only need read
 
     if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
     
-    if (pthread_create(&readThread, NULL, &readLoop, procStdOut) != 0)
+    if (pthread_create(&readThread, NULL, &readLoop, &procPipe[0]) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
 
     wait(&exitStatus);
@@ -309,8 +303,7 @@ static void readOutput(int procStdOut[2], int procStdErr[2])
 int main(int argc, char **argv)
 {
     const char** commandLine;
-    int procStdOut[2];
-    int procStdErr[2];
+    int procPipe[2];
     pid_t pid;
 
 
@@ -318,9 +311,7 @@ int main(int argc, char **argv)
     commandLine = getArgs(argc, argv);
     childProcessName = commandLine[0];
 
-    pipe(procStdOut);
-    pipe(procStdErr);
-
+    pipe(procPipe);
     sem_init(&outputMutex, 0, 1);
     sem_init(&redrawMutex, 0, 0);
 
@@ -336,9 +327,9 @@ int main(int argc, char **argv)
     if (pid < 0)
         showError(EXIT_FAILURE, false, "fork failed\n");
     else if (pid == 0)
-        runCommand(procStdOut, procStdErr, commandLine);
+        runCommand(procPipe, commandLine);
     else
-        readOutput(procStdOut, procStdErr);
+        readOutput(procPipe);
 
     if (alternateBuffer)
         fputs("\e[?1049l", stdout); // Switch to normal screen buffer
