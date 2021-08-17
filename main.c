@@ -268,6 +268,7 @@ static void readOutput(int procPipe[2])
     int exitStatus;
 
     close(procPipe[1]); // Close write end of fd, only need read
+    setupInterupts();
 
     if (pthread_create(&readThread, NULL, &readLoop, &procPipe[0]) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
@@ -325,7 +326,6 @@ int main(int argc, char **argv)
 
     ioctl(0, TIOCGWINSZ, &termSize);
     clock_gettime(CLOCK_MONOTONIC, &procStartTime);
-    setupInterupts();
 
     pid = fork();
     if (pid < 0)
