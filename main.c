@@ -12,6 +12,7 @@
 #include <sys/ioctl.h>    // for ioctl, winsize, TIOCGWINSZ
 #include <sys/time.h>     // for CLOCK_MONOTONIC, CLOCK_REALTIME
 #include <sys/wait.h>     // for wait
+#include <sys/mman.h>
 #include <time.h>         // for clock_gettime, timespec
 #include <unistd.h>       // for close, dup2, pipe, execvp, fork, read, STDE...
 #include "graphics.h"     // for tidyStats, clearScreen, returnToStartLine
@@ -40,6 +41,7 @@ bool alternateBuffer = false;
 
 static sem_t outputMutex;
 static sem_t redrawMutex;
+static sem_t* forkMutex;
 static const char* childProcessName;
 static char* inputBuffer;
 
@@ -106,6 +108,7 @@ static void initConsole(void)
     // CPU usage needs to be taken over a time interval
     portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(50), true);
 #endif
+    sem_post(forkMutex);       // Start the child program
 }
 
 
@@ -260,6 +263,7 @@ noreturn static int runCommand(int procPipe[2], const char** commandLine)
     close(procPipe[0]);    
     close(procPipe[1]);
 
+    sem_wait(forkMutex);
 
     command = commandLine[0];
     status_code = execvp(command, (char *const *)commandLine);
@@ -273,6 +277,7 @@ static void readOutput(int procPipe[2])
     pthread_t threadId, readThread;
     int exitStatus;
 
+    sem_post(forkMutex);
     close(procPipe[1]); // Close write end of fd, only need read
 
     if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
@@ -306,6 +311,9 @@ int main(int argc, char **argv)
     int procPipe[2];
     pid_t pid;
 
+    /* place semaphore in shared memory */
+    forkMutex = mmap(NULL, sizeof(*forkMutex), PROT_READ | PROT_WRITE, 
+                                MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
     setProgramName(argv[0]);
     commandLine = getArgs(argc, argv);
@@ -314,6 +322,8 @@ int main(int argc, char **argv)
     pipe(procPipe);
     sem_init(&outputMutex, 0, 1);
     sem_init(&redrawMutex, 0, 0);
+    if (sem_init(forkMutex, true, 0) != 0)
+        showError(EXIT_FAILURE, false, "sem_init failed\n");
 
     debugFile = fopen(DEBUG_FILE, "w");
     //setvbuf(debugFile, NULL, _IONBF, 0);
@@ -338,6 +348,7 @@ int main(int argc, char **argv)
 
     sem_destroy(&outputMutex);
     sem_destroy(&redrawMutex);
+    sem_destroy(forkMutex);
     fclose(debugFile);
 
     return 0;
