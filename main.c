@@ -12,7 +12,6 @@
 #include <sys/ioctl.h>    // for ioctl, winsize, TIOCGWINSZ
 #include <sys/time.h>     // for CLOCK_MONOTONIC, CLOCK_REALTIME
 #include <sys/wait.h>     // for wait
-#include <sys/mman.h>
 #include <time.h>         // for clock_gettime, timespec
 #include <unistd.h>       // for close, dup2, pipe, execvp, fork, read, STDE...
 #include "graphics.h"     // for tidyStats, clearScreen, returnToStartLine
@@ -41,7 +40,6 @@ bool alternateBuffer = false;
 
 static sem_t outputMutex;
 static sem_t redrawMutex;
-static sem_t* forkMutex;
 static const char* childProcessName;
 static char* inputBuffer;
 
@@ -102,13 +100,6 @@ static void initConsole(void)
     fputs("\e[?25l", stdout);   // Hides cursor
     fputs("\n\e[1A", stdout);   // Set the cursor to out starting position
     sem_post(&outputMutex);
-
-    portable_tick_create(tickCallback, 1, 0, false);
-#if __linux__
-    // CPU usage needs to be taken over a time interval
-    portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(50), true);
-#endif
-    sem_post(forkMutex);       // Start the child program
 }
 
 
@@ -258,12 +249,11 @@ noreturn static int runCommand(int procPipe[2], const char** commandLine)
 {
     const char* command;
     int status_code;
+
     dup2(STDOUT_FILENO, STDERR_FILENO);
     dup2(procPipe[1], STDOUT_FILENO);    
     close(procPipe[0]);    
     close(procPipe[1]);
-
-    sem_wait(forkMutex);
 
     command = commandLine[0];
     status_code = execvp(command, (char *const *)commandLine);
@@ -277,16 +267,23 @@ static void readOutput(int procPipe[2])
     pthread_t threadId, readThread;
     int exitStatus;
 
-    sem_post(forkMutex);
     close(procPipe[1]); // Close write end of fd, only need read
 
+    if (pthread_create(&readThread, NULL, &readLoop, &procPipe[0]) != 0)
+        showError(EXIT_FAILURE, false, "pthread_create failed\n");
+ 
     if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
     
-    if (pthread_create(&readThread, NULL, &readLoop, &procPipe[0]) != 0)
-        showError(EXIT_FAILURE, false, "pthread_create failed\n");
+
+    portable_tick_create(tickCallback, 1, 0, false);
+#if __linux__
+    // CPU usage needs to be taken over a time interval
+    portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(50), true);
+#endif
 
     wait(&exitStatus);
+    pthread_join(readThread, NULL);     // Wait for everything to complete
     tidyStats();
 
     if (WIFSTOPPED(exitStatus))
@@ -311,18 +308,15 @@ int main(int argc, char **argv)
     int procPipe[2];
     pid_t pid;
 
-    /* place semaphore in shared memory */
-    forkMutex = mmap(NULL, sizeof(*forkMutex), PROT_READ | PROT_WRITE, 
-                                MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
     setProgramName(argv[0]);
     commandLine = getArgs(argc, argv);
     childProcessName = commandLine[0];
 
     pipe(procPipe);
-    sem_init(&outputMutex, 0, 1);
-    sem_init(&redrawMutex, 0, 0);
-    if (sem_init(forkMutex, true, 0) != 0)
+    if (sem_init(&outputMutex, false, 1) != 0)
+        showError(EXIT_FAILURE, false, "sem_init failed\n");
+    if (sem_init(&redrawMutex, false, 0) != 0)
         showError(EXIT_FAILURE, false, "sem_init failed\n");
 
     debugFile = fopen(DEBUG_FILE, "w");
@@ -348,7 +342,6 @@ int main(int argc, char **argv)
 
     sem_destroy(&outputMutex);
     sem_destroy(&redrawMutex);
-    sem_destroy(forkMutex);
     fclose(debugFile);
 
     return 0;
