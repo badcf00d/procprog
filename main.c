@@ -287,16 +287,16 @@ static void readOutput(int procPipe[2])
     tidyStats();
 
     if (WIFSTOPPED(exitStatus))
-        printf("\e[1G\e[2K(%s) stopped by signal %d in %.03fs\n",
+        printf("\n\e[1G\e[2K(%s) stopped by signal %d in %.03fs\n",
                 childProcessName, WSTOPSIG(exitStatus), proc_runtime());
     else if (WIFSIGNALED(exitStatus))
-        printf("\e[1G\e[2K(%s) terminated by signal %d in %.03fs\n",
+        printf("\n\e[1G\e[2K(%s) terminated by signal %d in %.03fs\n",
                 childProcessName, WTERMSIG(exitStatus), proc_runtime());
     else if (WIFEXITED(exitStatus) && WEXITSTATUS(exitStatus))
-        printf("\e[1G\e[2K(%s) exited with non-zero status %d in %.03fs\n",
+        printf("\n\e[1G\e[2K(%s) exited with non-zero status %d in %.03fs\n",
                 childProcessName, WEXITSTATUS(exitStatus), proc_runtime());
     else
-        printf("\e[1G\e[2K(%s) finished in %.03fs\n",
+        printf("\n\e[1G\e[2K(%s) finished in %.03fs\n",
                 childProcessName, proc_runtime());
 }
 
