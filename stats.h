@@ -1,6 +1,9 @@
 #include <stdbool.h>      // for bool
 #include <time.h>         // for timespec
 
+#define STAT_FORMAT_LENGTH 128
+
+
 struct procStat 
 {
     unsigned long long tUser;

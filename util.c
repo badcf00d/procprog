@@ -13,6 +13,7 @@
 #include <sys/time.h>          // for CLOCK_MONOTONIC
 #include "timer.h"             // for timespecsub, SEC_TO_MSEC
 #include "util.h"
+#include "graphics.h"
 #if __APPLE__
 #include <Availability.h>
 #include <sys/sysctl.h>
@@ -90,7 +91,7 @@ const char** getArgs(int argc, char** argv)
     int optc;
     bool append = false;
     char* outFilename = NULL;
-    FILE* outFile = stderr;
+    FILE* outFile = NULL;
     static struct option longOpts[] =
     {
         {"help", no_argument, NULL, 'h'},
@@ -171,7 +172,7 @@ noreturn void showError(int status, bool shouldShowUsage, const char* format, ..
 {
     va_list varArgs;
 
-    fputs("\e[0;31mError\e[0m: ", stdout);
+    fputs(ANSI_FG_RED "Error " ANSI_RESET_ALL, stderr);
     
     va_start(varArgs, format);
     vprintf(format, varArgs);

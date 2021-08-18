@@ -1,4 +1,4 @@
-#include "stats.h"
+#define _POSIX_C_SOURCE 200809L
 #include <printf.h>     // for parse_printf_format
 #include <stdarg.h>     // for va_end, va_list, va_start, va_arg
 #include <stdbool.h>    // for false, bool, true
@@ -10,6 +10,7 @@
 #include "graphics.h"   // for ANSI_RESET_ALL, gotoStatLine, ANSI_FG_CYAN
 #include "timer.h"      // for timespecsub, SECS_IN_DAY, SEC_TO_MSEC
 #include "util.h"       // for printable_strlen
+#include "stats.h"
 
 extern struct timespec procStartTime;
 extern FILE* debugFile;
@@ -124,7 +125,7 @@ static bool getMemUsage(float* usage)
 #elif __linux__
     char memLine[64]; // should really be around 30 characters
 	FILE *fp;
-	unsigned long memAvailable, memTotal;
+	unsigned long memAvailable = 0, memTotal = 0;
     unsigned char fieldsFound = 0;
 
     fp = fopen("/proc/meminfo", "r");
@@ -300,7 +301,7 @@ static bool getDiskUsage(float* activity)
 static void addStatIfRoom(char* statOutput, const char* format, ...)
 {
     unsigned prevLength = printable_strlen(statOutput);
-    char buffer[128] = {0};
+    char buffer[STAT_FORMAT_LENGTH] = {0};
     va_list varArgs;
 
     va_start(varArgs, format);
@@ -308,7 +309,7 @@ static void addStatIfRoom(char* statOutput, const char* format, ...)
     va_end(varArgs);
     
     if ((prevLength + printable_strlen(buffer)) < termSize.ws_col)
-        strcat(statOutput, buffer);
+        strncat(statOutput, buffer, STAT_FORMAT_LENGTH);
 }
 
 
@@ -349,7 +350,7 @@ void printStats(bool newLine, bool redraw)
     struct timespec timeDiff;
     struct timespec currentTime;
     char statOutput[256] = {0};
-    char statFormat[128] = {0};
+    char statFormat[STAT_FORMAT_LENGTH] = {0};
     static float cpuUsage = __FLT_MAX__;
     static float memUsage = __FLT_MAX__;
     static float diskUsage = __FLT_MAX__;

@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #ifdef __APPLE__
 #include <dispatch/dispatch.h>
 #include <stdio.h>
