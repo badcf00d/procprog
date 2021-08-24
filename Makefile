@@ -46,7 +46,7 @@ install: $(EXE)
 	@install $< $(DESTDIR)$(PREFIX)/bin/$(EXE)
 	$(info Executable installed to $(DESTDIR)$(PREFIX)/bin/$(EXE))
 
-uninstall: 
+uninstall:
 	@rm -f $(DESTDIR)$(PREFIX)/bin/$(EXE)
 	$(info Executable deleted from $(DESTDIR)$(PREFIX)/bin/$(EXE))
 

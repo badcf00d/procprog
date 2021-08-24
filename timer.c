@@ -52,17 +52,17 @@ void portable_tick_create(void (*callback)(), unsigned int sec, unsigned int nse
 
 #elif __linux__
 
-    struct sigevent timerEvent = 
+    struct sigevent timerEvent =
     {
         .sigev_notify = SIGEV_THREAD,
         .sigev_notify_function = callback,
         .sigev_notify_attributes = NULL
     };
-    struct itimerspec timerPeriod = 
+    struct itimerspec timerPeriod =
     {
         .it_value.tv_sec = (once) ? sec : 0,
         .it_value.tv_nsec = (once) ? nsec : 1,   // In our case if !once we want the timer to fire immediately
-        .it_interval.tv_sec = (once) ? 0 : sec, 
+        .it_interval.tv_sec = (once) ? 0 : sec,
         .it_interval.tv_nsec = (once) ? 0 : nsec
     };
     timer_t timer;

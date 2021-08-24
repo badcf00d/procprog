@@ -24,7 +24,7 @@ extern struct timespec procStartTime;
 extern FILE* debugFile;
 
 
-unsigned printable_strlen(const char *str) 
+unsigned printable_strlen(const char *str)
 {
     unsigned length = 0;
     bool skip = false;
@@ -38,7 +38,7 @@ unsigned printable_strlen(const char *str)
         {
             if (*str == 'm')
                 skip = false;
-        } 
+        }
         else if ((*str >= ' ') && (*str <= '~'))
             length++;
 
@@ -72,7 +72,7 @@ int setProgramName(char* name)
 #if __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 12
 	retVal = pthread_setname_np(pthread_self(), nameBuf);
 #elif  __linux__
-	if(prctl(PR_SET_NAME, (unsigned long)nameBuf, 0, 0, 0)) 
+	if(prctl(PR_SET_NAME, (unsigned long)nameBuf, 0, 0, 0))
     {
 		retVal = errno;
 	}
@@ -101,8 +101,8 @@ const char** getArgs(int argc, char** argv)
         {"output-file", required_argument, NULL, 'o'},
         {NULL, no_argument, NULL, 0}
     };
-    
-    
+
+
     while ((optc = getopt_long(argc, argv, "+aho:Vv", longOpts, (int*) 0)) != EOF)
     {
         switch (optc)
@@ -112,7 +112,7 @@ const char** getArgs(int argc, char** argv)
         case 'v':
             //TODO verbose output
         case 'V':
-            showVersion(EXIT_SUCCESS);        
+            showVersion(EXIT_SUCCESS);
         case 'a':
             append = true;
             break;
@@ -161,9 +161,9 @@ noreturn void showUsage(int status)
 
 noreturn void showVersion(int status)
 {
-    printf("%s %s (Built %s)\nWritten by %s, Copyright %s\n", 
+    printf("%s %s (Built %s)\nWritten by %s, Copyright %s\n",
                 PROGRAM_NAME, VERSION, __DATE__, AUTHORS, BUILD_YEAR);
-    
+
     exit(status);
 }
 
@@ -173,7 +173,7 @@ noreturn void showError(int status, bool shouldShowUsage, const char* format, ..
     va_list varArgs;
 
     fputs(ANSI_FG_RED "Error " ANSI_RESET_ALL, stderr);
-    
+
     va_start(varArgs, format);
     vprintf(format, varArgs);
     va_end(varArgs);

@@ -111,14 +111,14 @@ static void* readLoop(void* arg)
 
     initConsole();
     while (read(procPipe, &inputChar, 1) > 0)
-    {        
+    {
         if (inputChar == '\n')
         {
             // We don't want to erase the line immediately
             // after the new line character, as this usually
             // means lines get deleted as soon as they are output.
             newLine = true;
-            //fprintf(debugFile, "%.03f: inputchar = \\n (%d) (%d)\n", 
+            //fprintf(debugFile, "%.03f: inputchar = \\n (%d) (%d)\n",
             //    proc_runtime(), inputChar, isprint(inputChar));
         }
         else
@@ -140,7 +140,7 @@ static void* readLoop(void* arg)
             else if (isprint(inputChar))
                 printChar(inputChar);
 
-            //fprintf(debugFile, "%.03f: inputchar = %c (%d) (%d)\n", 
+            //fprintf(debugFile, "%.03f: inputchar = %c (%d) (%d)\n",
             //    proc_runtime(), inputChar, inputChar, isprint(inputChar));
 
             fflush(stdout);
@@ -162,7 +162,7 @@ static void* redrawThread(void* arg)
     };
     int retval;
     (void)(arg);
-    
+
     while (1)
     {
         sem_wait(&redrawMutex);
@@ -178,7 +178,7 @@ debounce:
 
         if (retval == 0)
             goto debounce;
-        
+
         printStats(false, true);
         if (inputBuffer)
         {
@@ -201,7 +201,7 @@ static void sigwinchHandler(int sigNum)
 }
 
 
-static void sigintHandler(int sigNum) 
+static void sigintHandler(int sigNum)
 {
     (void)sigNum;
     fclose(debugFile);
@@ -253,8 +253,8 @@ noreturn static int runCommand(int procPipe[2], const char** commandLine)
     int status_code;
 
     dup2(procPipe[1], STDERR_FILENO);
-    dup2(procPipe[1], STDOUT_FILENO);    
-    close(procPipe[0]);    
+    dup2(procPipe[1], STDOUT_FILENO);
+    close(procPipe[0]);
     close(procPipe[1]);
 
     command = commandLine[0];
@@ -274,10 +274,10 @@ static void readOutput(int procPipe[2])
 
     if (pthread_create(&readThread, NULL, &readLoop, &procPipe[0]) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
- 
+
     if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
-    
+
 
     portable_tick_create(tickCallback, 1, 0, false);
 #if __linux__

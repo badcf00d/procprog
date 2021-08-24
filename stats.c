@@ -52,7 +52,7 @@ static bool getCPUUsage(float* usage)
     static struct cpuStat oldReading;
 
     count = HOST_CPU_LOAD_INFO_COUNT;
-    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t *)&r_load, &count)) 
+    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t *)&r_load, &count))
     {
         return false;
     }
@@ -81,12 +81,12 @@ static bool getCPUUsage(float* usage)
         return false;
     }
 
-    sscanf(statLine, "cpu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu", &(statBuffer.tUser), 
-        &(statBuffer.tNice), &(statBuffer.tSystem), &(statBuffer.tIdle), &(statBuffer.tIoWait), 
+    sscanf(statLine, "cpu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu", &(statBuffer.tUser),
+        &(statBuffer.tNice), &(statBuffer.tSystem), &(statBuffer.tIdle), &(statBuffer.tIoWait),
         &(statBuffer.tIrq), &(statBuffer.tSoftIrq), &(statBuffer.tSteal), &(statBuffer.tGuest),
         &(statBuffer.tGuestNice));
-    
-    newReading.tBusy = statBuffer.tUser + statBuffer.tNice + statBuffer.tSystem + statBuffer.tIrq + 
+
+    newReading.tBusy = statBuffer.tUser + statBuffer.tNice + statBuffer.tSystem + statBuffer.tIrq +
         statBuffer.tSoftIrq + statBuffer.tSteal + statBuffer.tGuest + statBuffer.tGuestNice;
     newReading.tIdle = statBuffer.tIdle + statBuffer.tIoWait;
 #else
@@ -133,12 +133,12 @@ static bool getMemUsage(float* usage)
     {
         return false;
     }
-    
+
     while ((fgets(memLine, sizeof(memLine), fp)) && (fieldsFound != 0b11))
     {
         if (strncmp(memLine, "Mem", 3) == 0)
         {
-            if (((fieldsFound & 0b01) == 0) && 
+            if (((fieldsFound & 0b01) == 0) &&
                 ((fieldsFound |= sscanf(memLine, "MemTotal: %lu", &memTotal)) > 0))
             {
                 continue;
@@ -195,7 +195,7 @@ static bool getNetdevUsage(float* download, float* upload)
         // Ignores all of the table title rows, and the loopback device
         if (*(devLine + 4) != 'l' && *(devLine + 5) != 'o' && *(devLine + 6) == ':')
         {
-            sscanf(devLine + 7, "%llu %*u %*u %*u %*u %*u %*u %*u " 
+            sscanf(devLine + 7, "%llu %*u %*u %*u %*u %*u %*u %*u "
                                 "%llu %*u %*u %*u %*u %*u %*u %*u", &bytesDown, &bytesUp);
             newReading.bytesDown += bytesDown;
             newReading.bytesUp += bytesUp;
@@ -221,8 +221,8 @@ static bool getNetdevUsage(float* download, float* upload)
         timespecsub(&newReading.time, &oldReading.time, &timeDiff);
         interval = timeDiff.tv_sec + (timeDiff.tv_nsec * 1e-9);
 
-        if ((interval <= 0) || 
-            (oldReading.bytesDown > newReading.bytesDown) || 
+        if ((interval <= 0) ||
+            (oldReading.bytesDown > newReading.bytesDown) ||
             (oldReading.bytesUp > newReading.bytesUp))
             return false;
 
@@ -307,7 +307,7 @@ static void addStatIfRoom(char* statOutput, const char* format, ...)
     va_start(varArgs, format);
     vsprintf(buffer, format, varArgs);
     va_end(varArgs);
-    
+
     if ((prevLength + printable_strlen(buffer)) < termSize.ws_col)
         strncat(statOutput, buffer, STAT_FORMAT_LENGTH);
 }
@@ -315,7 +315,7 @@ static void addStatIfRoom(char* statOutput, const char* format, ...)
 
 
 static char* getStatFormat(char* buffer, const char* format, double amberVal, double redVal, ...)
-{    
+{
     size_t numStats = parse_printf_format(format, 0, NULL);
     bool amber = false;
     bool red = false;
@@ -332,14 +332,14 @@ static char* getStatFormat(char* buffer, const char* format, double amberVal, do
             amber = true;
     }
     va_end(varArgs);
-    
+
     if (red)
         sprintf(buffer, " [" ANSI_FG_RED "%s" ANSI_RESET_ALL "]", format);
     else if (amber)
         sprintf(buffer, " [" ANSI_FG_YELLOW "%s" ANSI_RESET_ALL "]", format);
     else
         sprintf(buffer, " [" ANSI_FG_DGRAY "%s" ANSI_RESET_ALL "]", format);
-    
+
     return buffer;
 }
 
@@ -355,15 +355,15 @@ void printStats(bool newLine, bool redraw)
     static float memUsage = __FLT_MAX__;
     static float diskUsage = __FLT_MAX__;
     static float download = __FLT_MAX__;
-    static float upload = __FLT_MAX__;    
+    static float upload = __FLT_MAX__;
     unsigned numLines = numCharacters / (termSize.ws_col + 1);
 
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     timespecsub(&currentTime, &procStartTime, &timeDiff);
 
-    sprintf(statOutput, "\e[1G\e[K" ANSI_FG_CYAN "%02ld:%02ld:%02ld %c" ANSI_RESET_ALL, 
+    sprintf(statOutput, "\e[1G\e[K" ANSI_FG_CYAN "%02ld:%02ld:%02ld %c" ANSI_RESET_ALL,
                             (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
-                            (timeDiff.tv_sec % 3600) / 60, 
+                            (timeDiff.tv_sec % 3600) / 60,
                             (timeDiff.tv_sec % 60),
                             spinner);
 

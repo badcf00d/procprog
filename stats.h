@@ -4,7 +4,7 @@
 #define STAT_FORMAT_LENGTH 128
 
 
-struct procStat 
+struct procStat
 {
     unsigned long long tUser;
     unsigned long long tNice;

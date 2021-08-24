@@ -12,7 +12,7 @@ extern bool alternateBuffer;
 void returnToStartLine(bool clearText)
 {
     unsigned numLines = numCharacters / (termSize.ws_col + 1);
-    //fprintf(debugFile, "height: %d, width: %d, numChar: %d, numLines = %d\n", 
+    //fprintf(debugFile, "height: %d, width: %d, numChar: %d, numLines = %d\n",
     //            termSize.ws_row, termSize.ws_col, numCharacters, numLines);
 
     if (clearText)
@@ -21,7 +21,7 @@ void returnToStartLine(bool clearText)
         {
             fputs("\e[2K\e[1A", stdout);
         }
-        fputs("\e[2K\e[1G", stdout);        
+        fputs("\e[2K\e[1G", stdout);
     }
     else
     {
@@ -46,7 +46,7 @@ void tidyStats(void)
 
 void clearScreen(void)
 {
-    fprintf(debugFile, "%.03f: height: %d, width: %d, numChar: %u\n", 
+    fprintf(debugFile, "%.03f: height: %d, width: %d, numChar: %u\n",
                 proc_runtime(), termSize.ws_row, termSize.ws_col, numCharacters);
 
     if (alternateBuffer)
