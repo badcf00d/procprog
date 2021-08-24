@@ -25,7 +25,7 @@ ifeq ($(PREFIX),)
 endif
 
 
-.PHONY: clean all install uninstall iwyu tidy
+.PHONY: clean all install uninstall iwyu tidy checks
 
 
 all: $(EXE)
@@ -50,11 +50,14 @@ uninstall:
 	@rm -f $(DESTDIR)$(PREFIX)/bin/$(EXE)
 	$(info Executable deleted from $(DESTDIR)$(PREFIX)/bin/$(EXE))
 
+
+checks:
+	@make -k iwyu tidy
+
 iwyu: CC := include-what-you-use
 iwyu: IWYU_FLAGS := -Xiwyu --no_fwd_decls
 iwyu: clean
-iwyu: all
-
+iwyu: $(OBJ)
 
 tidy: $(SRC)
 	@clang-tidy $^ -- $(TIDY_FLAGS)
