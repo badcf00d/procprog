@@ -118,6 +118,8 @@ static void* readLoop(void* arg)
             // after the new line character, as this usually
             // means lines get deleted as soon as they are output.
             newLine = true;
+            //fprintf(debugFile, "%.03f: inputchar = \\n (%d) (%d)\n", 
+            //    proc_runtime(), inputChar, isprint(inputChar));
         }
         else
         {
@@ -309,12 +311,9 @@ int main(int argc, char **argv)
     int procPipe[2];
     pid_t pid;
 
+    if (pipe(procPipe) != 0)
+        showError(EXIT_FAILURE, false, "pipe failed\n");
 
-    setProgramName(argv[0]);
-    commandLine = getArgs(argc, argv);
-    childProcessName = commandLine[0];
-
-    pipe(procPipe);
     if (sem_init(&outputMutex, false, 1) != 0)
         showError(EXIT_FAILURE, false, "sem_init failed\n");
     if (sem_init(&redrawMutex, false, 0) != 0)
@@ -323,6 +322,10 @@ int main(int argc, char **argv)
     debugFile = fopen(DEBUG_FILE, "w");
     //setvbuf(debugFile, NULL, _IONBF, 0);
     fprintf(debugFile, "Starting...\n");
+
+    setProgramName(argv[0]);
+    commandLine = getArgs(argc, argv);
+    childProcessName = commandLine[0];
 
     ioctl(0, TIOCGWINSZ, &termSize);
     clock_gettime(CLOCK_MONOTONIC, &procStartTime);
