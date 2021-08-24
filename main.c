@@ -250,7 +250,7 @@ noreturn static int runCommand(int procPipe[2], const char** commandLine)
     const char* command;
     int status_code;
 
-    dup2(STDOUT_FILENO, STDERR_FILENO);
+    dup2(procPipe[1], STDERR_FILENO);
     dup2(procPipe[1], STDOUT_FILENO);    
     close(procPipe[0]);    
     close(procPipe[1]);
