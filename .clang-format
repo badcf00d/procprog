@@ -1,0 +1,15 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 100
+SpacesBeforeTrailingComments: 4
+MaxEmptyLinesToKeep: 4
+PointerAlignment: Left
+ReflowComments: false
+SortIncludes: false
+AllowShortIfStatementsOnASingleLine: false
+BinPackArguments: true
+BinPackParameters: true
+AlignAfterOpenBracket: Align
+
+BreakBeforeBraces: Allman

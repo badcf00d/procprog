@@ -18,7 +18,6 @@ endif
 SRC := $(wildcard $(SRC_DIR)/*.c)
 OBJ := $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 CFLAGS := -Wall -Wextra -fverbose-asm -flto -std=c99
-TIDY_FLAGS := -std=c99
 
 ifeq ($(PREFIX),)
     PREFIX := /usr/local
@@ -60,4 +59,7 @@ iwyu: clean
 iwyu: $(OBJ)
 
 tidy: $(SRC)
-	@clang-tidy $^ -- $(TIDY_FLAGS)
+	@clang-tidy --format-style=file $^ -- $(CFLAGS)
+
+format: $(SRC)
+	@clang-format -i --style=file --verbose $^
