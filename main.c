@@ -1,23 +1,23 @@
 #define _GNU_SOURCE
-#include <ctype.h>        // for isprint
-#include <errno.h>        // for EINTR, errno
-#include <pthread.h>      // for pthread_create, pthread_t
-#include <semaphore.h>    // for sem_post, sem_wait, sem_destroy, sem_init
-#include <signal.h>       // for sigaction, sigemptyset, sa_handler, SA_RESTART
-#include <stdbool.h>      // for false, true, bool
-#include <stdio.h>        // for fputs, printf, fflush, stdout, NULL, fclose
-#include <stdlib.h>       // for EXIT_FAILURE, calloc, exit, WEXITSTATUS
-#include <stdnoreturn.h>  // for noreturn
-#include <string.h>       // for memset, strsignal
-#include <sys/ioctl.h>    // for ioctl, winsize, TIOCGWINSZ
-#include <sys/time.h>     // for CLOCK_MONOTONIC, CLOCK_REALTIME
-#include <sys/wait.h>     // for wait
-#include <time.h>         // for clock_gettime, timespec
-#include <unistd.h>       // for close, dup2, pipe, execvp, fork, read, STDE...
-#include "graphics.h"     // for tidyStats, clearScreen, returnToStartLine
-#include "stats.h"        // for printStats, advanceSpinner
-#include "timer.h"        // for portable_tick_create, MSEC_TO_NSEC, timespe...
-#include "util.h"         // for showError, proc_runtime, getArgs, setProgra...
+#include <ctype.h>          // for isprint
+#include <errno.h>          // for EINTR, errno
+#include <pthread.h>        // for pthread_create, pthread_t
+#include <semaphore.h>      // for sem_post, sem_wait, sem_destroy, sem_init
+#include <signal.h>         // for sigaction, sigemptyset, sa_handler, SA_RESTART
+#include <stdbool.h>        // for false, true, bool
+#include <stdio.h>          // for fputs, printf, fflush, stdout, NULL, fclose
+#include <stdlib.h>         // for EXIT_FAILURE, calloc, exit, WEXITSTATUS
+#include <stdnoreturn.h>    // for noreturn
+#include <string.h>         // for memset, strsignal
+#include <sys/ioctl.h>      // for ioctl, winsize, TIOCGWINSZ
+#include <sys/time.h>       // for CLOCK_MONOTONIC, CLOCK_REALTIME
+#include <sys/wait.h>       // for wait
+#include <time.h>           // for clock_gettime, timespec
+#include <unistd.h>         // for close, dup2, pipe, execvp, fork, read, STDE...
+#include "graphics.h"       // for tidyStats, clearScreen, returnToStartLine
+#include "stats.h"          // for printStats, advanceSpinner
+#include "timer.h"          // for portable_tick_create, MSEC_TO_NSEC, timespe...
+#include "util.h"           // for showError, proc_runtime, getArgs, setProgra...
 
 /*
 Useful shell one-liner to test:
@@ -42,7 +42,6 @@ static sem_t outputMutex;
 static sem_t redrawMutex;
 static const char* childProcessName;
 static char* inputBuffer;
-
 
 
 
@@ -94,11 +93,11 @@ static void tabToSpaces(void)
 
 static void initConsole(void)
 {
-    inputBuffer = (char*) calloc(sizeof(char), 2048);
+    inputBuffer = (char*)calloc(sizeof(char), 2048);
 
     sem_wait(&outputMutex);
-    fputs("\e[?25l", stdout);   // Hides cursor
-    fputs("\n\e[1A", stdout);   // Set the cursor to out starting position
+    fputs("\e[?25l", stdout);    // Hides cursor
+    fputs("\n\e[1A", stdout);    // Set the cursor to out starting position
     sem_post(&outputMutex);
 }
 
@@ -158,7 +157,7 @@ static void* redrawThread(void* arg)
     struct timespec timeoutTime;
     struct timespec debounceTime = {
         .tv_sec = 0,
-        .tv_nsec = MSEC_TO_NSEC(300)
+        .tv_nsec = MSEC_TO_NSEC(300),
     };
     int retval;
     (void)(arg);
@@ -169,12 +168,12 @@ static void* redrawThread(void* arg)
         sem_wait(&outputMutex);
         clearScreen();
 
-debounce:
+    debounce:
         clock_gettime(CLOCK_REALTIME, &currentTime);
         timespecadd(&currentTime, &debounceTime, &timeoutTime);
 
         while ((retval = sem_timedwait(&redrawMutex, &timeoutTime)) == -1 && (errno == EINTR))
-            continue;       /* Restart if interrupted by handler */
+            continue; /* Restart if interrupted by handler */
 
         if (retval == 0)
             goto debounce;
@@ -207,15 +206,12 @@ static void sigintHandler(int sigNum)
     fclose(debugFile);
 
     tidyStats();
-    printf("\n(%s) %s (signal %d) after %.03fs\n",
-                        childProcessName,
-                        strsignal(sigNum),
-                        sigNum,
-                        proc_runtime());
+    printf("\n(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum), sigNum,
+           proc_runtime());
 
     if (alternateBuffer)
-        fputs("\e[?1049l", stdout); // Switch to normal screen buffer
-    fputs("\e[?25h", stdout);       // Shows cursor
+        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
+    fputs("\e[?25h", stdout);          // Shows cursor
     fflush(stdout);
 
     exit(EXIT_SUCCESS);
@@ -258,7 +254,7 @@ noreturn static int runCommand(int procPipe[2], const char** commandLine)
     close(procPipe[1]);
 
     command = commandLine[0];
-    status_code = execvp(command, (char *const *)commandLine);
+    status_code = execvp(command, (char* const*)commandLine);
     showError(EXIT_FAILURE, false, "cannot run %s, execvp returned %d\n", command, status_code);
     /* does not return */
 }
@@ -269,7 +265,7 @@ static void readOutput(int procPipe[2])
     pthread_t threadId, readThread;
     int exitStatus;
 
-    close(procPipe[1]); // Close write end of fd, only need read
+    close(procPipe[1]);    // Close write end of fd, only need read
     setupInterupts();
 
     if (pthread_create(&readThread, NULL, &readLoop, &procPipe[0]) != 0)
@@ -286,26 +282,25 @@ static void readOutput(int procPipe[2])
 #endif
 
     wait(&exitStatus);
-    pthread_join(readThread, NULL);     // Wait for everything to complete
+    pthread_join(readThread, NULL);    // Wait for everything to complete
     tidyStats();
 
     if (WIFSTOPPED(exitStatus))
-        printf("\n\e[1G\e[2K(%s) stopped by signal %d in %.03fs\n",
-                childProcessName, WSTOPSIG(exitStatus), proc_runtime());
+        printf("\n\e[1G\e[2K(%s) stopped by signal %d in %.03fs\n", childProcessName,
+               WSTOPSIG(exitStatus), proc_runtime());
     else if (WIFSIGNALED(exitStatus))
-        printf("\n\e[1G\e[2K(%s) terminated by signal %d in %.03fs\n",
-                childProcessName, WTERMSIG(exitStatus), proc_runtime());
+        printf("\n\e[1G\e[2K(%s) terminated by signal %d in %.03fs\n", childProcessName,
+               WTERMSIG(exitStatus), proc_runtime());
     else if (WIFEXITED(exitStatus) && WEXITSTATUS(exitStatus))
-        printf("\n\e[1G\e[2K(%s) exited with non-zero status %d in %.03fs\n",
-                childProcessName, WEXITSTATUS(exitStatus), proc_runtime());
+        printf("\n\e[1G\e[2K(%s) exited with non-zero status %d in %.03fs\n", childProcessName,
+               WEXITSTATUS(exitStatus), proc_runtime());
     else
-        printf("\n\e[1G\e[2K(%s) finished in %.03fs\n",
-                childProcessName, proc_runtime());
+        printf("\n\e[1G\e[2K(%s) finished in %.03fs\n", childProcessName, proc_runtime());
 }
 
 
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     const char** commandLine;
     int procPipe[2];
@@ -339,8 +334,8 @@ int main(int argc, char **argv)
         readOutput(procPipe);
 
     if (alternateBuffer)
-        fputs("\e[?1049l", stdout); // Switch to normal screen buffer
-    fputs("\e[?25h", stdout);       // Shows cursor
+        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
+    fputs("\e[?25h", stdout);          // Shows cursor
     fflush(stdout);
 
     sem_destroy(&outputMutex);

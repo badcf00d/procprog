@@ -1,15 +1,15 @@
 #define _POSIX_C_SOURCE 200809L
-#include <printf.h>     // for parse_printf_format
-#include <stdarg.h>     // for va_end, va_list, va_start, va_arg
-#include <stdbool.h>    // for false, bool, true
-#include <stdio.h>      // for fputs, sscanf, fclose, fgets, fopen, sprintf
-#include <string.h>     // for memcpy, strncmp, memset, strcat
-#include <sys/ioctl.h>  // for winsize
-#include <sys/time.h>   // for CLOCK_MONOTONIC
-#include <time.h>       // for timespec, NULL, clock_gettime, size_t
-#include "graphics.h"   // for ANSI_RESET_ALL, gotoStatLine, ANSI_FG_CYAN
-#include "timer.h"      // for timespecsub, SECS_IN_DAY, SEC_TO_MSEC
-#include "util.h"       // for printable_strlen
+#include <printf.h>       // for parse_printf_format
+#include <stdarg.h>       // for va_end, va_list, va_start, va_arg
+#include <stdbool.h>      // for false, bool, true
+#include <stdio.h>        // for fputs, sscanf, fclose, fgets, fopen, sprintf
+#include <string.h>       // for memcpy, strncmp, memset, strcat
+#include <sys/ioctl.h>    // for winsize
+#include <sys/time.h>     // for CLOCK_MONOTONIC
+#include <time.h>         // for timespec, NULL, clock_gettime, size_t
+#include "graphics.h"     // for ANSI_RESET_ALL, gotoStatLine, ANSI_FG_CYAN
+#include "timer.h"        // for timespecsub, SECS_IN_DAY, SEC_TO_MSEC
+#include "util.h"         // for printable_strlen
 #include "stats.h"
 
 extern struct timespec procStartTime;
@@ -24,18 +24,18 @@ void advanceSpinner(void)
 {
     switch (spinner)
     {
-        case '/':
-            spinner = '-';
-            break;
-        case '-':
-            spinner = '\\';
-            break;
-        case '\\':
-            spinner = '|';
-            break;
-        case '|':
-            spinner = '/';
-            break;
+    case '/':
+        spinner = '-';
+        break;
+    case '-':
+        spinner = '\\';
+        break;
+    case '\\':
+        spinner = '|';
+        break;
+    case '|':
+        spinner = '/';
+        break;
     }
 }
 
@@ -52,17 +52,18 @@ static bool getCPUUsage(float* usage)
     static struct cpuStat oldReading;
 
     count = HOST_CPU_LOAD_INFO_COUNT;
-    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t *)&r_load, &count))
+    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t*)&r_load, &count))
     {
         return false;
     }
 
-    newReading.tBusy = r_load.cpu_ticks[CPU_STATE_SYSTEM] + r_load.cpu_ticks[CPU_STATE_USER] + r_load.cpu_ticks[CPU_STATE_NICE];
+    newReading.tBusy = r_load.cpu_ticks[CPU_STATE_SYSTEM] + r_load.cpu_ticks[CPU_STATE_USER] +
+                       r_load.cpu_ticks[CPU_STATE_NICE];
     newReading.tIdle = r_load.cpu_ticks[CPU_STATE_IDLE];
 #elif __linux__
-    FILE *fp;
+    FILE* fp;
     char* retVal;
-    char statLine[256]; // Theoretically this could be up to ~220 characters, usually ~50
+    char statLine[256];    // Theoretically this could be up to ~220 characters, usually ~50
     float interval, idleTime;
     struct procStat statBuffer;
     struct cpuStat newReading;
@@ -82,15 +83,16 @@ static bool getCPUUsage(float* usage)
     }
 
     sscanf(statLine, "cpu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu", &(statBuffer.tUser),
-        &(statBuffer.tNice), &(statBuffer.tSystem), &(statBuffer.tIdle), &(statBuffer.tIoWait),
-        &(statBuffer.tIrq), &(statBuffer.tSoftIrq), &(statBuffer.tSteal), &(statBuffer.tGuest),
-        &(statBuffer.tGuestNice));
+           &(statBuffer.tNice), &(statBuffer.tSystem), &(statBuffer.tIdle), &(statBuffer.tIoWait),
+           &(statBuffer.tIrq), &(statBuffer.tSoftIrq), &(statBuffer.tSteal), &(statBuffer.tGuest),
+           &(statBuffer.tGuestNice));
 
     newReading.tBusy = statBuffer.tUser + statBuffer.tNice + statBuffer.tSystem + statBuffer.tIrq +
-        statBuffer.tSoftIrq + statBuffer.tSteal + statBuffer.tGuest + statBuffer.tGuestNice;
+                       statBuffer.tSoftIrq + statBuffer.tSteal + statBuffer.tGuest +
+                       statBuffer.tGuestNice;
     newReading.tIdle = statBuffer.tIdle + statBuffer.tIoWait;
 #else
-    #error "Don't have a CPU usage implemenatation for this OS"
+#error "Don't have a CPU usage implemenatation for this OS"
 #endif
 
     if ((oldReading.tBusy == 0) && (oldReading.tIdle == 0))
@@ -121,11 +123,11 @@ static bool getMemUsage(float* usage)
         return false;
 
 #ifdef __APPLE__
-    // TODO
+        // TODO
 #elif __linux__
-    char memLine[64]; // should really be around 30 characters
-	FILE *fp;
-	unsigned long memAvailable = 0, memTotal = 0;
+    char memLine[64];    // should really be around 30 characters
+    FILE* fp;
+    unsigned long memAvailable = 0, memTotal = 0;
     unsigned char fieldsFound = 0;
 
     fp = fopen("/proc/meminfo", "r");
@@ -145,10 +147,10 @@ static bool getMemUsage(float* usage)
             }
             fieldsFound |= sscanf(memLine, "MemAvailable: %lu", &memAvailable) << 1;
         }
-	}
-	fclose(fp);
+    }
+    fclose(fp);
 #else
-    #error "Don't have a memory usage implemenatation for this OS"
+#error "Don't have a memory usage implemenatation for this OS"
 #endif
 
     if ((fieldsFound == 0b11) && (memTotal != 0))
@@ -171,15 +173,15 @@ static bool getNetdevUsage(float* download, float* upload)
         return false;
 
 #ifdef __APPLE__
-    // TODO
+        // TODO
 #elif __linux__
     static struct netDevReading oldReading;
     struct netDevReading newReading = {0};
     unsigned long long bytesDown, bytesUp;
     struct timespec timeDiff;
-    char devLine[256]; // should be no longer than ~120 characters
+    char devLine[256];    // should be no longer than ~120 characters
     float interval;
-	FILE *fp;
+    FILE* fp;
 
     memset(&newReading, 0, sizeof(newReading));
     clock_gettime(CLOCK_MONOTONIC, &newReading.time);
@@ -195,16 +197,15 @@ static bool getNetdevUsage(float* download, float* upload)
         // Ignores all of the table title rows, and the loopback device
         if (*(devLine + 4) != 'l' && *(devLine + 5) != 'o' && *(devLine + 6) == ':')
         {
-            sscanf(devLine + 7, "%llu %*u %*u %*u %*u %*u %*u %*u "
-                                "%llu %*u %*u %*u %*u %*u %*u %*u", &bytesDown, &bytesUp);
+            sscanf(devLine + 7, "%llu %*u %*u %*u %*u %*u %*u %*u %llu", &bytesDown, &bytesUp);
             newReading.bytesDown += bytesDown;
             newReading.bytesUp += bytesUp;
             //fprintf(debugFile, "Read line, bytesDown %llu, bytesUp %llu\n", bytesDown, bytesUp);
         }
-	}
-	fclose(fp);
+    }
+    fclose(fp);
 #else
-    #error "Don't have a network usage implemenatation for this OS"
+#error "Don't have a network usage implemenatation for this OS"
 #endif
 
     if ((newReading.bytesDown == 0) && (newReading.bytesUp == 0))
@@ -221,8 +222,7 @@ static bool getNetdevUsage(float* download, float* upload)
         timespecsub(&newReading.time, &oldReading.time, &timeDiff);
         interval = timeDiff.tv_sec + (timeDiff.tv_nsec * 1e-9);
 
-        if ((interval <= 0) ||
-            (oldReading.bytesDown > newReading.bytesDown) ||
+        if ((interval <= 0) || (oldReading.bytesDown > newReading.bytesDown) ||
             (oldReading.bytesUp > newReading.bytesUp))
             return false;
 
@@ -244,15 +244,15 @@ static bool getDiskUsage(float* activity)
         return false;
 
 #ifdef __APPLE__
-    // TODO
+        // TODO
 #elif __linux__
     static struct diskReading oldReading;
     struct diskReading newReading;
     struct timespec timeDiff;
     unsigned long tBusy;
-    char devLine[256]; // should be no longer than ~120 characters
+    char devLine[256];    // should be no longer than ~120 characters
     float interval;
-	FILE *fp;
+    FILE* fp;
 
     memset(&newReading, 0, sizeof(newReading));
     clock_gettime(CLOCK_MONOTONIC, &newReading.time);
@@ -272,10 +272,10 @@ static bool getDiskUsage(float* activity)
             newReading.tBusy += tBusy;
             //fprintf(debugFile, "Read line, tBusy %lu\n", tBusy);
         }
-	}
-	fclose(fp);
+    }
+    fclose(fp);
 #else
-    #error "Don't have a disk usage implemenatation for this OS"
+#error "Don't have a disk usage implemenatation for this OS"
 #endif
 
     if (oldReading.time.tv_sec == 0)
@@ -362,10 +362,8 @@ void printStats(bool newLine, bool redraw)
     timespecsub(&currentTime, &procStartTime, &timeDiff);
 
     sprintf(statOutput, "\e[1G\e[K" ANSI_FG_CYAN "%02ld:%02ld:%02ld %c" ANSI_RESET_ALL,
-                            (timeDiff.tv_sec % SECS_IN_DAY) / 3600,
-                            (timeDiff.tv_sec % 3600) / 60,
-                            (timeDiff.tv_sec % 60),
-                            spinner);
+            (timeDiff.tv_sec % SECS_IN_DAY) / 3600, (timeDiff.tv_sec % 3600) / 60,
+            (timeDiff.tv_sec % 60), spinner);
 
     if (((cpuUsage != __FLT_MAX__) && redraw) || getCPUUsage(&cpuUsage))
     {
@@ -379,7 +377,8 @@ void printStats(bool newLine, bool redraw)
         addStatIfRoom(statOutput, statFormat, memUsage);
     }
 
-    if (((download != __FLT_MAX__) && (upload != __FLT_MAX__) && redraw) || getNetdevUsage(&download, &upload))
+    if (((download != __FLT_MAX__) && (upload != __FLT_MAX__) && redraw) ||
+        getNetdevUsage(&download, &upload))
     {
         getStatFormat(statFormat, "Rx/Tx: %4.1fKB/s / %.1fKB/s", 1000, 100000, download, upload);
         addStatIfRoom(statOutput, statFormat, download, upload);

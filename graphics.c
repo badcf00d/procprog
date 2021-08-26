@@ -1,7 +1,7 @@
-#include <stdbool.h>    // for bool, false, true
-#include <stdio.h>      // for fputs, stdout, fflush, fprintf, printf, FILE
-#include <sys/ioctl.h>  // for winsize
-#include "util.h"       // for proc_runtime
+#include <stdbool.h>      // for bool, false, true
+#include <stdio.h>        // for fputs, stdout, fflush, fprintf, printf, FILE
+#include <sys/ioctl.h>    // for winsize
+#include "util.h"         // for proc_runtime
 
 
 extern FILE* debugFile;
@@ -46,8 +46,8 @@ void tidyStats(void)
 
 void clearScreen(void)
 {
-    fprintf(debugFile, "%.03f: height: %d, width: %d, numChar: %u\n",
-                proc_runtime(), termSize.ws_row, termSize.ws_col, numCharacters);
+    fprintf(debugFile, "%.03f: height: %d, width: %d, numChar: %u\n", proc_runtime(),
+            termSize.ws_row, termSize.ws_col, numCharacters);
 
     if (alternateBuffer)
     {
