@@ -42,6 +42,7 @@ static sem_t outputMutex;
 static sem_t redrawMutex;
 static const char* childProcessName;
 static char* inputBuffer;
+static FILE* outputFile;
 
 
 
@@ -111,6 +112,8 @@ static void* readLoop(void* arg)
     initConsole();
     while (read(procPipe, &inputChar, 1) > 0)
     {
+        if (outputFile != NULL)
+            fwrite(&inputChar, sizeof(inputChar), 1, outputFile);
         if (inputChar == '\n')
         {
             // We don't want to erase the line immediately
@@ -204,6 +207,9 @@ static void sigintHandler(int sigNum)
 {
     (void)sigNum;
     fclose(debugFile);
+
+    if (outputFile != NULL)
+        fclose(outputFile);
 
     tidyStats();
     printf("\n(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum), sigNum,
@@ -319,7 +325,7 @@ int main(int argc, char** argv)
     fprintf(debugFile, "Starting...\n");
 
     setProgramName(argv[0]);
-    commandLine = getArgs(argc, argv);
+    commandLine = getArgs(argc, argv, &outputFile);
     childProcessName = commandLine[0];
 
     ioctl(0, TIOCGWINSZ, &termSize);
@@ -341,6 +347,9 @@ int main(int argc, char** argv)
     sem_destroy(&outputMutex);
     sem_destroy(&redrawMutex);
     fclose(debugFile);
+
+    if (outputFile != NULL)
+        fclose(outputFile);
 
     return 0;
 }

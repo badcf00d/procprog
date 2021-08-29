@@ -51,7 +51,7 @@ uninstall:
 
 
 checks:
-	@make -k iwyu tidy
+	@make -k iwyu format tidy
 
 iwyu: CC := include-what-you-use
 iwyu: IWYU_FLAGS := -Xiwyu --no_fwd_decls

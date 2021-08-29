@@ -2,6 +2,7 @@
 #include <mach/mach.h>
 #endif
 #include <stdbool.h>      // for bool
+#include <stdio.h>        // for FILE
 #include <stdnoreturn.h>  // for noreturn
 
 
@@ -13,7 +14,7 @@
 
 unsigned printable_strlen(const char *str);
 int setProgramName(char* name);
-const char** getArgs(int argc, char** argv);
+const char** getArgs(int argc, char** argv, FILE** outputFile);
 noreturn void showUsage(int status);
 noreturn void showVersion(int status);
 noreturn void showError(int status, bool shouldShowUsage, const char* format, ...);

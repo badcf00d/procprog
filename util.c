@@ -86,19 +86,17 @@ int setProgramName(char* name)
 }
 
 
-const char** getArgs(int argc, char** argv)
+const char** getArgs(int argc, char** argv, FILE** outputFile)
 {
-    int optc;
-    bool append = false;
-    char* outFilename = NULL;
-    FILE* outFile = NULL;
     static struct option longOpts[] = {{"help", no_argument, NULL, 'h'},
                                        {"verbose", no_argument, NULL, 'v'},
                                        {"version", no_argument, NULL, 'V'},
                                        {"append", no_argument, NULL, 'a'},
                                        {"output-file", required_argument, NULL, 'o'},
                                        {NULL, no_argument, NULL, 0}};
-
+    int optc;
+    bool append = false;
+    char* outFilename = NULL;
 
     while ((optc = getopt_long(argc, argv, "+aho:Vv", longOpts, (int*)0)) != EOF)
     {
@@ -128,10 +126,9 @@ const char** getArgs(int argc, char** argv)
 
     if (outFilename)
     {
-        outFile = fopen(outFilename, (append) ? "a" : "w");
-        // TODO file output
+        *outputFile = fopen(outFilename, (append) ? "a" : "w");
 
-        if (outFile == NULL)
+        if (*outputFile == NULL)
         {
             showError(EXIT_FAILURE, false, "Couldn't open file: %s\n", outFilename);
         }
