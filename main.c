@@ -62,25 +62,11 @@ static void tickCallback(union sigval sv)
 
 
 
-static void checkStats(void)
-{
-    if (numCharacters > termSize.ws_col)
-    {
-        if ((numCharacters % termSize.ws_col) == 0)
-            printStats(true, true);
-    }
-    else if (numCharacters == termSize.ws_col)
-        printStats(true, true);
-}
-
-
-
 static void printChar(char character)
 {
     if ((inputBuffer) && (numCharacters < 2048))
         *(inputBuffer + numCharacters) = character;
 
-    checkStats();
     putchar(character);
     numCharacters++;
 }
@@ -103,6 +89,7 @@ static void initConsole(void)
     sem_wait(&outputMutex);
     fputs("\e[?25l", stdout);    // Hides cursor
     fputs("\n\e[1A", stdout);    // Set the cursor to out starting position
+    setScrollArea(termSize.ws_row);
     sem_post(&outputMutex);
 }
 
@@ -135,7 +122,6 @@ static void* readLoop(void* arg)
             {
                 advanceSpinner();
                 returnToStartLine(true);
-                printStats(false, true);
                 memset(inputBuffer, 0, 2048);
                 numCharacters = 0;
                 newLine = false;
@@ -173,7 +159,12 @@ static void* redrawThread(void* arg)
     {
         sem_wait(&redrawMutex);
         sem_wait(&outputMutex);
-        clearScreen();
+
+        if (verbose)
+            tidyStats();
+        else
+            clearScreen();
+        fflush(stdout);
 
     debounce:
         clock_gettime(CLOCK_REALTIME, &currentTime);
@@ -185,8 +176,8 @@ static void* redrawThread(void* arg)
         if (retval == 0)
             goto debounce;
 
-        printStats(false, true);
         if (inputBuffer)
+        printStats(true);
         {
             fputs(inputBuffer, stdout);
             fflush(stdout);
@@ -215,15 +206,16 @@ static void sigintHandler(int sigNum)
     if (outputFile != NULL)
         fclose(outputFile);
 
+    if (alternateBuffer)
+        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
+
+    setScrollArea(termSize.ws_row + 1);
     tidyStats();
     printf("\n(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum), sigNum,
            proc_runtime());
+    fputs("\e[?25h", stdout);    // Shows cursor
 
-    if (alternateBuffer)
-        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
-    fputs("\e[?25h", stdout);          // Shows cursor
     fflush(stdout);
-
     exit(EXIT_SUCCESS);
 }
 
@@ -346,6 +338,7 @@ int main(int argc, char** argv)
     if (alternateBuffer)
         fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
     fputs("\e[?25h", stdout);          // Shows cursor
+    setScrollArea(termSize.ws_row + 1);
     fflush(stdout);
 
     sem_destroy(&outputMutex);

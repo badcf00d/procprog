@@ -30,10 +30,18 @@ void returnToStartLine(bool clearText)
 }
 
 
+void setScrollArea(unsigned numLines)
+{
+    fputs("\e[s", stdout);
+    printf("\e[0;%ur", numLines - 1);
+    fputs("\e[u", stdout);
+}
+
+
 void gotoStatLine(void)
 {
     // Clear screen below cursor, move to bottom of screen
-    fputs("\e[0J\e[9999;1H", stdout);
+    printf("\e[0J\e[%u;1H", termSize.ws_row + 1);
 }
 
 
@@ -62,5 +70,4 @@ void clearScreen(void)
         fputs("\e[0J\e[?1049h\e[3J\e[1;1H", stdout);
         alternateBuffer = true;
     }
-    fflush(stdout);
 }

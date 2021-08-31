@@ -45,5 +45,5 @@ struct cpuStat
 #endif
 };
 
-void printStats(bool newLine, bool redraw);
+void printStats(bool redraw);
 void advanceSpinner(void);

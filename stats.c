@@ -37,6 +37,7 @@ void advanceSpinner(void)
         spinner = '/';
         break;
     }
+    printf("\e[s\e[%u;10H" ANSI_FG_CYAN "%c" ANSI_RESET_ALL "\e[u", termSize.ws_row + 1, spinner);
 }
 
 // On linux this will always be false on the first call
@@ -345,7 +346,7 @@ static char* getStatFormat(char* buffer, const char* format, double amberVal, do
 
 
 
-void printStats(bool newLine, bool redraw)
+void printStats(bool redraw)
 {
     struct timespec timeDiff;
     struct timespec currentTime;
@@ -356,7 +357,6 @@ void printStats(bool newLine, bool redraw)
     static float diskUsage = __FLT_MAX__;
     static float download = __FLT_MAX__;
     static float upload = __FLT_MAX__;
-    unsigned numLines = numCharacters / (termSize.ws_col + 1);
 
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     timespecsub(&currentTime, &procStartTime, &timeDiff);
@@ -388,14 +388,6 @@ void printStats(bool newLine, bool redraw)
     {
         getStatFormat(statFormat, "Disk: %4.1f%%", 20, 80, diskUsage);
         addStatIfRoom(statOutput, statFormat, diskUsage);
-    }
-
-    if (newLine)
-    {
-        if (numLines >= (termSize.ws_row - 2))
-            fputs("\n\e[K\e[1S\e[A", stdout);
-        else
-            fputs("\n\e[K\n\e[A", stdout);
     }
 
     fputs("\e[s", stdout);
