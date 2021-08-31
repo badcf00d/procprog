@@ -46,13 +46,17 @@ static FILE* outputFile;
 
 
 
-
-// There's no void in the paramaters here because Linux forces
-// this callback to take an input, although we don't care about it
-static void tickCallback()
+#ifdef __APPLE__
+static void tickCallback(dispatch_source_t timer)
 {
+    (void)timer;
+#elif __linux__
+static void tickCallback(union sigval sv)
+{
+    (void)sv;
+#endif
     sem_wait(&outputMutex);
-    printStats(false, false);
+    printStats(false);
     sem_post(&outputMutex);
 }
 

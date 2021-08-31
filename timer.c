@@ -17,7 +17,8 @@
 
 
 
-void portable_tick_create(void (*callback)(), unsigned int sec, unsigned int nsec, bool once)
+void portable_tick_create(void (*callback)(union sigval), unsigned int sec, unsigned int nsec,
+                          bool once)
 {
 #ifdef __APPLE__
 
