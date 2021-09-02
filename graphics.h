@@ -56,4 +56,4 @@ void returnToStartLine(bool clearText);
 void gotoStatLine(void);
 void tidyStats(void);
 void clearScreen(void);
-void setScrollArea(unsigned numLines);
+void setScrollArea(unsigned numLines, bool newline);

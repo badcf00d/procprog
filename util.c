@@ -86,7 +86,7 @@ int setProgramName(char* name)
 }
 
 
-const char** getArgs(int argc, char** argv, FILE** outputFile)
+const char** getArgs(int argc, char** argv, FILE** outputFile, bool* verbose)
 {
     static struct option longOpts[] = {{"help", no_argument, NULL, 'h'},
                                        {"verbose", no_argument, NULL, 'v'},
@@ -98,16 +98,17 @@ const char** getArgs(int argc, char** argv, FILE** outputFile)
     bool append = false;
     char* outFilename = NULL;
 
-    while ((optc = getopt_long(argc, argv, "+aho:Vv", longOpts, (int*)0)) != EOF)
+    while ((optc = getopt_long(argc, argv, "+aho:vV", longOpts, (int*)0)) != EOF)
     {
         switch (optc)
         {
         case 'h':
-            showUsage(EXIT_SUCCESS);
+            showUsage(EXIT_SUCCESS);    // Doesn't return
         case 'v':
-            //TODO verbose output
+            *verbose = true;
+            break;
         case 'V':
-            showVersion(EXIT_SUCCESS);
+            showVersion(EXIT_SUCCESS);    // Doesn't return
         case 'a':
             append = true;
             break;

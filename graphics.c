@@ -30,11 +30,17 @@ void returnToStartLine(bool clearText)
 }
 
 
-void setScrollArea(unsigned numLines)
+void setScrollArea(unsigned numLines, bool newline)
 {
+    if (newline)
+        fputs("\n", stdout);
+
     fputs("\e[s", stdout);
     printf("\e[0;%ur", numLines - 1);
     fputs("\e[u", stdout);
+
+    if (newline)
+        fputs("\n\e[1A", stdout);
 }
 
 

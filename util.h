@@ -14,7 +14,7 @@
 
 unsigned printable_strlen(const char *str);
 int setProgramName(char* name);
-const char** getArgs(int argc, char** argv, FILE** outputFile);
+const char** getArgs(int argc, char** argv, FILE** outputFile, bool* verbose);
 noreturn void showUsage(int status);
 noreturn void showVersion(int status);
 noreturn void showError(int status, bool shouldShowUsage, const char* format, ...);

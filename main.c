@@ -21,7 +21,7 @@
 
 /*
 Useful shell one-liner to test:
-make && ./procprog perl -e '$| = 1; while (1) { for (1..80) { print("$_\t"); } print "\n"}'
+make && ./procprog perl -e '$| = 1; while (1) { for (1..80) { print("$_"); } print "\n"}'
 make && ./procprog perl -e '$| = 1; while (1) { for (1..20) { print("$_\t"); select(undef, undef, undef, 0.1); } print "\n"}'
 make && ./procprog perl -e '$| = 1; while (1) { for (1..20) { print("$_"); select(undef, undef, undef, 0.1); } print "\n"}'
 make && ./procprog perl -e '$| = 1; sleep(3); while (1) { for (1..3) { print("$_"); select(undef, undef, undef, 0.1); } print "\n"}'
@@ -43,6 +43,7 @@ static sem_t redrawMutex;
 static const char* childProcessName;
 static char* inputBuffer;
 static FILE* outputFile;
+static bool verbose;
 
 
 
@@ -64,11 +65,14 @@ static void tickCallback(union sigval sv)
 
 static void printChar(char character)
 {
-    if ((inputBuffer) && (numCharacters < 2048))
-        *(inputBuffer + numCharacters) = character;
-
     putchar(character);
-    numCharacters++;
+
+    if (!verbose)
+    {
+        if ((inputBuffer) && (numCharacters < 2048))
+            *(inputBuffer + numCharacters) = character;
+        numCharacters++;
+    }
 }
 
 
@@ -84,12 +88,15 @@ static void tabToSpaces(void)
 
 static void initConsole(void)
 {
-    inputBuffer = (char*)calloc(sizeof(char), 2048);
+    if (!verbose)
+    {
+        inputBuffer = (char*)calloc(sizeof(char), 2048);
+        if (!inputBuffer)
+            showError(EXIT_FAILURE, false, "Input buffer calloc failed\n");
+    }
 
     sem_wait(&outputMutex);
-    fputs("\e[?25l", stdout);    // Hides cursor
-    fputs("\n\e[1A", stdout);    // Set the cursor to out starting position
-    setScrollArea(termSize.ws_row);
+    setScrollArea(termSize.ws_row, true);
     sem_post(&outputMutex);
 }
 
@@ -97,7 +104,7 @@ static void initConsole(void)
 static void* readLoop(void* arg)
 {
     char inputChar;
-    bool newLine = false;
+    bool needsClearing = false;
     int procPipe = *(int*)arg;
 
     initConsole();
@@ -105,39 +112,38 @@ static void* readLoop(void* arg)
     {
         if (outputFile != NULL)
             fwrite(&inputChar, sizeof(inputChar), 1, outputFile);
+
+        sem_wait(&outputMutex);
+
+        if (verbose)
+            printChar(inputChar);
+
         if (inputChar == '\n')
         {
-            // We don't want to erase the line immediately
-            // after the new line character, as this usually
-            // means lines get deleted as soon as they are output.
-            newLine = true;
-            //fprintf(debugFile, "%.03f: inputchar = \\n (%d) (%d)\n",
-            //    proc_runtime(), inputChar, isprint(inputChar));
+            needsClearing = true;
+            advanceSpinner();
         }
-        else
+        else if (!verbose)
         {
-            sem_wait(&outputMutex);
-
-            if (newLine == true)
+            if (needsClearing)
             {
-                advanceSpinner();
-                returnToStartLine(true);
                 memset(inputBuffer, 0, 2048);
+                returnToStartLine(true);
+                needsClearing = false;
                 numCharacters = 0;
-                newLine = false;
             }
 
             if (inputChar == '\t')
                 tabToSpaces();
             else if (isprint(inputChar))
                 printChar(inputChar);
-
-            //fprintf(debugFile, "%.03f: inputchar = %c (%d) (%d)\n",
-            //    proc_runtime(), inputChar, inputChar, isprint(inputChar));
-
-            fflush(stdout);
-            sem_post(&outputMutex);
         }
+
+        //fprintf(debugFile, "%.03f: inputchar = %c (%d) (%d)\n",
+        //    proc_runtime(), inputChar, inputChar, isprint(inputChar));
+
+        fflush(stdout);
+        sem_post(&outputMutex);
     }
     return NULL;
 }
@@ -176,8 +182,9 @@ static void* redrawThread(void* arg)
         if (retval == 0)
             goto debounce;
 
-        if (inputBuffer)
+        setScrollArea(termSize.ws_row, verbose);
         printStats(true);
+        if ((!verbose) && (inputBuffer))
         {
             fputs(inputBuffer, stdout);
             fflush(stdout);
@@ -209,11 +216,10 @@ static void sigintHandler(int sigNum)
     if (alternateBuffer)
         fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
 
-    setScrollArea(termSize.ws_row + 1);
+    setScrollArea(termSize.ws_row + 1, verbose);
     tidyStats();
     printf("\n(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum), sigNum,
            proc_runtime());
-    fputs("\e[?25h", stdout);    // Shows cursor
 
     fflush(stdout);
     exit(EXIT_SUCCESS);
@@ -321,7 +327,7 @@ int main(int argc, char** argv)
     fprintf(debugFile, "Starting...\n");
 
     setProgramName(argv[0]);
-    commandLine = getArgs(argc, argv, &outputFile);
+    commandLine = getArgs(argc, argv, &outputFile, &verbose);
     childProcessName = commandLine[0];
 
     ioctl(0, TIOCGWINSZ, &termSize);
@@ -337,8 +343,7 @@ int main(int argc, char** argv)
 
     if (alternateBuffer)
         fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
-    fputs("\e[?25h", stdout);          // Shows cursor
-    setScrollArea(termSize.ws_row + 1);
+    setScrollArea(termSize.ws_row + 1, verbose);
     fflush(stdout);
 
     sem_destroy(&outputMutex);
