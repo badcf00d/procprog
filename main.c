@@ -185,6 +185,7 @@ static void* redrawThread(void* arg)
             goto debounce;
 
         setScrollArea(termSize.ws_row, verbose);
+        fputs("\n", stdout);
         printStats(true);
         if ((!verbose) && (inputBuffer))
         {
@@ -218,9 +219,9 @@ static void sigintHandler(int sigNum)
     if (alternateBuffer)
         fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
 
-    setScrollArea(termSize.ws_row + 1, verbose);
-    tidyStats();
-    printf("\n(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum), sigNum,
+    setScrollArea(termSize.ws_row + 1, false);
+    gotoStatLine();
+    printf("(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum), sigNum,
            proc_runtime());
 
     fflush(stdout);
@@ -293,19 +294,23 @@ static void readOutput(int procPipe[2])
 
     wait(&exitStatus);
     pthread_join(readThread, NULL);    // Wait for everything to complete
-    tidyStats();
+
+    if (alternateBuffer)
+        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
+    setScrollArea(termSize.ws_row + 1, false);
+    gotoStatLine();
 
     if (WIFSTOPPED(exitStatus))
-        printf("\n\e[1G\e[2K(%s) stopped by signal %d in %.03fs\n", childProcessName,
-               WSTOPSIG(exitStatus), proc_runtime());
+        printf("(%s) stopped by signal %d in %.03fs\n", childProcessName, WSTOPSIG(exitStatus),
+               proc_runtime());
     else if (WIFSIGNALED(exitStatus))
-        printf("\n\e[1G\e[2K(%s) terminated by signal %d in %.03fs\n", childProcessName,
-               WTERMSIG(exitStatus), proc_runtime());
+        printf("(%s) terminated by signal %d in %.03fs\n", childProcessName, WTERMSIG(exitStatus),
+               proc_runtime());
     else if (WIFEXITED(exitStatus) && WEXITSTATUS(exitStatus))
-        printf("\n\e[1G\e[2K(%s) exited with non-zero status %d in %.03fs\n", childProcessName,
+        printf("(%s) exited with non-zero status %d in %.03fs\n", childProcessName,
                WEXITSTATUS(exitStatus), proc_runtime());
     else
-        printf("\n\e[1G\e[2K(%s) finished in %.03fs\n", childProcessName, proc_runtime());
+        printf("(%s) finished in %.03fs\n", childProcessName, proc_runtime());
 }
 
 
@@ -342,10 +347,6 @@ int main(int argc, char** argv)
         runCommand(procPipe, commandLine);
     else
         readOutput(procPipe);
-
-    if (alternateBuffer)
-        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
-    setScrollArea(termSize.ws_row + 1, verbose);
     fflush(stdout);
 
     sem_destroy(&outputMutex);

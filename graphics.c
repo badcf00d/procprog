@@ -40,7 +40,7 @@ void setScrollArea(unsigned numLines, bool newline)
     fputs("\e[u", stdout);
 
     if (newline)
-        fputs("\n\e[1A", stdout);
+        fputs("\e[1A", stdout);
 }
 
 
