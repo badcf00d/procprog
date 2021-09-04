@@ -54,7 +54,7 @@ uninstall:
 	$(info Executable deleted from $(DESTDIR)$(PREFIX)/bin/$(EXE))
 
 
-checks: format tidy cppcheck iwyu
+checks: check-format tidy cppcheck iwyu
 
 iwyu: $(SRC:%.c=%.iwyu)
 %.iwyu: $(SRC_DIR)/%.c
@@ -64,6 +64,10 @@ iwyu: $(SRC:%.c=%.iwyu)
 tidy: $(SRC)
 	$(info clang-tidy: $^)
 	@clang-tidy --format-style=file -checks=$(TIDY_CHECKS),$(TIDY_IGNORE) $^ -- $(CFLAGS)
+
+check-format: $(SRC) $(HEADER)
+	$(info clang-format: $^)
+	@clang-format --dry-run -Werror --style=file $^
 
 format: $(SRC) $(HEADER)
 	$(info clang-format: $^)
