@@ -23,8 +23,10 @@ ifeq ($(PREFIX),)
     PREFIX := /usr/local
 endif
 
+CPPCHECK_IGNORE := --inline-suppr -U__APPLE__ -i ./time --suppress=variableScope --suppress=missingIncludeSystem
+CPPCHECK_CHECKS := --max-ctu-depth=4 --inconclusive --enable=all --platform=unix64 --std=c99 --library=posix
 
-.PHONY: clean all install uninstall iwyu tidy checks
+.PHONY: clean all install uninstall iwyu tidy format cppcheck checks
 
 
 all: $(EXE)
@@ -63,3 +65,6 @@ tidy: $(SRC)
 
 format: $(SRC)
 	@clang-format -i --style=file --verbose $^
+cppcheck: $(SRC) $(HEADER)
+	$(info cppcheck: $^)
+	@cppcheck --force --quiet $(CPPCHECK_CHECKS) $(CPPCHECK_IGNORE) $(SRC_DIR)

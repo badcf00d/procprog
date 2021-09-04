@@ -364,6 +364,7 @@ void printStats(bool redraw)
     static float upload = __FLT_MAX__;
 
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
+    // cppcheck-suppress unreadVariable
     timespecsub(&currentTime, &procStartTime, &timeDiff);
 
     sprintf(statOutput, "\e[1G\e[K" ANSI_FG_CYAN "%02ld:%02ld:%02ld %c" ANSI_RESET_ALL,
