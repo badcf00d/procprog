@@ -17,5 +17,6 @@ int setProgramName(char* name);
 const char** getArgs(int argc, char** argv, FILE** outputFile, bool* verbose);
 noreturn void showUsage(int status);
 noreturn void showVersion(int status);
-noreturn void showError(int status, bool shouldShowUsage, const char* format, ...);
+noreturn void showError(int status, bool shouldShowUsage, const char* format, ...)
+    __attribute__((format(printf, 3, 4)));
 float proc_runtime(void);

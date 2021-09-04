@@ -20,6 +20,11 @@ extern bool alternateBuffer;
 
 static char spinner = '-';
 
+static void addStatIfRoom(char* statOutput, const char* format, ...)
+    __attribute__((format(printf, 2, 3)));
+static char* getStatFormat(char* buffer, const char* format, double amberVal, double redVal, ...)
+    __attribute__((format(printf, 2, 5)));
+
 void advanceSpinner(void)
 {
     switch (spinner)
