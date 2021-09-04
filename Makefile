@@ -14,17 +14,19 @@ else
 		LIBS := -lm -lpthread
 	endif
 endif
-
-SRC := $(wildcard $(SRC_DIR)/*.c)
-OBJ := $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-CFLAGS := -Wall -Wextra -fverbose-asm -flto -std=c99
-
 ifeq ($(PREFIX),)
     PREFIX := /usr/local
 endif
+HEADER := $(subst //,/,$(wildcard $(SRC_DIR)/*.h))
+SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
+OBJ := $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+CFLAGS := -Wall -Wextra -fverbose-asm -flto -std=c99
 
+TIDY_CHECKS := clang-analyzer-*,performance-*,portability-*,misc-*,cert-*
+TIDY_IGNORE := -clang-analyzer-valist.Uninitialized,-cert-err34-c
 CPPCHECK_IGNORE := --inline-suppr -U__APPLE__ -i ./time --suppress=variableScope --suppress=missingIncludeSystem
 CPPCHECK_CHECKS := --max-ctu-depth=4 --inconclusive --enable=all --platform=unix64 --std=c99 --library=posix
+IWYU_FLAGS := -Xiwyu --no_fwd_decls
 
 .PHONY: clean all install uninstall iwyu tidy format cppcheck checks
 
@@ -36,7 +38,7 @@ $(EXE): $(OBJ)
 	$(info Executable compiled to $(shell realpath --relative-to=$(shell pwd) $@))
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@$(CC) $(IWYU_FLAGS) $(CFLAGS) -c $< -o $@
+	@$(CC) $(CFLAGS) -c $< -o $@
 	$(info $(CC): $(notdir $<))
 
 clean:
@@ -52,19 +54,21 @@ uninstall:
 	$(info Executable deleted from $(DESTDIR)$(PREFIX)/bin/$(EXE))
 
 
-checks:
-	@make -k iwyu format tidy
+checks: format tidy cppcheck iwyu
 
-iwyu: CC := include-what-you-use
-iwyu: IWYU_FLAGS := -Xiwyu --no_fwd_decls
-iwyu: clean
-iwyu: $(OBJ)
+iwyu: $(SRC:%.c=%.iwyu)
+%.iwyu: $(SRC_DIR)/%.c
+	@echo -n "\ninclude-what-you-use: $<"
+	@include-what-you-use $(IWYU_FLAGS) $(CFLAGS) -c $< || true
 
 tidy: $(SRC)
-	@clang-tidy --format-style=file $^ -- $(CFLAGS)
+	$(info clang-tidy: $^)
+	@clang-tidy --format-style=file -checks=$(TIDY_CHECKS),$(TIDY_IGNORE) $^ -- $(CFLAGS)
 
-format: $(SRC)
-	@clang-format -i --style=file --verbose $^
+format: $(SRC) $(HEADER)
+	$(info clang-format: $^)
+	@clang-format -i --style=file $^
+
 cppcheck: $(SRC) $(HEADER)
 	$(info cppcheck: $^)
 	@cppcheck --force --quiet $(CPPCHECK_CHECKS) $(CPPCHECK_IGNORE) $(SRC_DIR)
