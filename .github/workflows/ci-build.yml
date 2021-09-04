@@ -1,0 +1,32 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Prerequisites
+      run: |
+        sudo apt-get install -y clang-tidy clang-format cppcheck iwyu
+        sudo ln -s /usr/lib/clang/10 /usr/lib/clang/9.0.1
+    - name: make
+      run: make
+    - name: make checks
+      run: make checks
+    - name: Upload a Build Artifact
+      uses: actions/upload-artifact@v2.2.4
+      with:
+        # Artifact name
+        name: procprog
+        # A file, directory or wildcard pattern that describes what to upload
+        path: procprog
+        # The desired behavior if no files are found using the provided path.
+
