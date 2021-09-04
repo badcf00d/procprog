@@ -1,6 +1,7 @@
 #include <stdbool.h>
 
 
+// clang-format off
 #define ANSI_BOLD        "\e[1m"
 #define ANSI_DIM         "\e[2m"
 #define ANSI_UNDERLINED  "\e[4m"
@@ -51,6 +52,7 @@
 #define ANSI_BG_LMAGENTA "\e[105m"
 #define ANSI_BG_LCYAN    "\e[106m"
 #define ANSI_BG_WHITE    "\e[107m"
+// clang-format on
 
 void returnToStartLine(bool clearText);
 void gotoStatLine(void);

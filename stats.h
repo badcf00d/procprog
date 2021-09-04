@@ -1,5 +1,5 @@
-#include <stdbool.h>      // for bool
-#include <time.h>         // for timespec
+#include <stdbool.h>    // for bool
+#include <time.h>       // for timespec
 
 #define STAT_FORMAT_LENGTH 128
 
@@ -41,7 +41,7 @@ struct cpuStat
     unsigned long long tBusy;
     unsigned long long tIdle;
 #else
-    #error "Don't have a CPU usage implemenatation for this OS"
+#error "Don't have a CPU usage implemenatation for this OS"
 #endif
 };
 
