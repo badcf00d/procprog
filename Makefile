@@ -1,7 +1,9 @@
+CURRENT_PATH := $(subst $(lastword $(notdir $(MAKEFILE_LIST))),,$(subst $(space),\$(space),$(shell realpath '$(strip $(MAKEFILE_LIST))')))
 CC := clang
 EXE := procprog
 SRC_DIR := ./
 OBJ_DIR := ./obj
+$(shell mkdir -p $(CURRENT_PATH)$(SRC_DIR) $(CURRENT_PATH)$(OBJ_DIR))
 
 ifeq ($(OS),Windows_NT)
 	LIBS := -lm -lrt -lpthread
@@ -19,7 +21,7 @@ ifeq ($(PREFIX),)
 endif
 HEADER := $(subst //,/,$(wildcard $(SRC_DIR)/*.h))
 SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
-OBJ := $(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+OBJ := $(SRC:$(SRC_DIR)%.c=$(OBJ_DIR)/%.o)
 CFLAGS := -Wall -Wextra -fverbose-asm -flto -std=c99
 
 TIDY_CHECKS := clang-analyzer-*,performance-*,portability-*,misc-*,cert-*
