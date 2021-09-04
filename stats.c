@@ -37,7 +37,7 @@ void advanceSpinner(void)
         spinner = '/';
         break;
     }
-    printf("\e[s\e[%u;10H" ANSI_FG_CYAN "%c" ANSI_RESET_ALL "\e[u", termSize.ws_row + 1, spinner);
+    printf("\e[s\e[%u;10H" ANSI_FG_CYAN "%c" ANSI_RESET_ALL "\e[u", termSize.ws_row + 1U, spinner);
 }
 
 // On linux this will always be false on the first call

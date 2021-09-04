@@ -47,7 +47,7 @@ void setScrollArea(unsigned numLines, bool newline)
 void gotoStatLine(void)
 {
     // Clear screen below cursor, move to bottom of screen
-    printf("\e[0J\e[%u;1H", termSize.ws_row + 1);
+    printf("\e[0J\e[%u;1H", termSize.ws_row + 1U);
 }
 
 

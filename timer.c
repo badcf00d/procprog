@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #else
+#include <bits/types/__sigval_t.h>           // for sigval
 #include <bits/types/sigevent_t.h>           // for sigev_notify_attributes
 #include <bits/types/struct_itimerspec.h>    // for itimerspec
 #include <bits/types/timer_t.h>              // for timer_t
@@ -17,7 +18,7 @@
 
 
 
-void portable_tick_create(void (*callback)(union sigval), unsigned int sec, unsigned int nsec,
+void portable_tick_create(void (*callback)(__sigval_t), unsigned int sec, unsigned int nsec,
                           bool once)
 {
 #ifdef __APPLE__

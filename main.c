@@ -1,23 +1,24 @@
 #define _GNU_SOURCE
-#include <ctype.h>          // for isprint
-#include <errno.h>          // for EINTR, errno
-#include <pthread.h>        // for pthread_create, pthread_t
-#include <semaphore.h>      // for sem_post, sem_wait, sem_destroy, sem_init
-#include <signal.h>         // for sigaction, sigemptyset, sa_handler, SA_RESTART
-#include <stdbool.h>        // for false, true, bool
-#include <stdio.h>          // for fputs, printf, fflush, stdout, NULL, fclose
-#include <stdlib.h>         // for EXIT_FAILURE, calloc, exit, WEXITSTATUS
-#include <stdnoreturn.h>    // for noreturn
-#include <string.h>         // for memset, strsignal
-#include <sys/ioctl.h>      // for ioctl, winsize, TIOCGWINSZ
-#include <sys/time.h>       // for CLOCK_MONOTONIC, CLOCK_REALTIME
-#include <sys/wait.h>       // for wait
-#include <time.h>           // for clock_gettime, timespec
-#include <unistd.h>         // for close, dup2, pipe, execvp, fork, read, STDE...
-#include "graphics.h"       // for tidyStats, clearScreen, returnToStartLine
-#include "stats.h"          // for printStats, advanceSpinner
-#include "timer.h"          // for portable_tick_create, MSEC_TO_NSEC, timespe...
-#include "util.h"           // for showError, proc_runtime, getArgs, setProgra...
+#include <bits/types/__sigval_t.h>    // for sigval
+#include <ctype.h>                    // for isprint
+#include <errno.h>                    // for EINTR, errno
+#include <pthread.h>                  // for pthread_create, pthread_join, pth...
+#include <semaphore.h>                // for sem_post, sem_wait, sem_destroy
+#include <signal.h>                   // for sigaction, sigemptyset, sa_handler
+#include <stdbool.h>                  // for false, true, bool
+#include <stdio.h>                    // for fflush, printf, NULL, fclose, fputs
+#include <stdlib.h>                   // for EXIT_FAILURE, calloc, exit, WEXIT...
+#include <stdnoreturn.h>              // for noreturn
+#include <string.h>                   // for memset, strsignal
+#include <sys/ioctl.h>                // for ioctl, winsize, TIOCGWINSZ
+#include <sys/time.h>                 // for CLOCK_MONOTONIC, CLOCK_REALTIME
+#include <sys/wait.h>                 // for wait
+#include <time.h>                     // for clock_gettime, timespec
+#include <unistd.h>                   // for close, dup2, execvp, fork, pipe
+#include "graphics.h"                 // for setScrollArea, tidyStats, clearSc...
+#include "stats.h"                    // for printStats, advanceSpinner
+#include "timer.h"                    // for portable_tick_create, MSEC_TO_NSEC
+#include "util.h"                     // for showError, proc_runtime, getArgs
 
 /*
 Useful shell one-liner to test:
@@ -28,6 +29,7 @@ make && ./procprog perl -e '$| = 1; sleep(3); while (1) { for (1..3) { print("$_
 make && ./procprog perl -e '$| = 1; for (1..3) { for (1..3) { print("$_"); select(undef, undef, undef, 0.1); } print "\n"}'
 make && ./procprog perl -e '$| = 1; while (1) { for (1..99) { print("$_,$_,$_,$_,$_,$_,$_,$_,$_,$_,"); select(undef, undef, undef, 0.1); } print "\n"}'
 make && ./procprog perl -e '$| = 1; while (1) { for (1..30) { print("$_,$_,$_,$_,$_,$_,$_,$_,$_,$_,"); select(undef, undef, undef, 0.1); } print "\n"}'
+make && ./procprog sudo hdparm -tT /dev/sda
 */
 
 #define DEBUG_FILE "debug.log"
@@ -52,7 +54,7 @@ static void tickCallback(dispatch_source_t timer)
 {
     (void)timer;
 #elif __linux__
-static void tickCallback(union sigval sv)
+static void tickCallback(__sigval_t sv)
 {
     (void)sv;
 #endif
