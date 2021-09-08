@@ -64,30 +64,6 @@ static void tickCallback(__sigval_t sv)
 }
 
 
-
-static void printChar(char character)
-{
-    putchar(character);
-
-    if (!verbose)
-    {
-        if ((inputBuffer) && (numCharacters < 2048))
-            *(inputBuffer + numCharacters) = character;
-        numCharacters++;
-    }
-}
-
-
-static void tabToSpaces(void)
-{
-    printChar(' ');
-    while ((numCharacters % 8) != 0)
-    {
-        printChar(' ');
-    }
-}
-
-
 static void initConsole(void)
 {
     if (!verbose)
@@ -118,7 +94,7 @@ static void* readLoop(void* arg)
         sem_wait(&outputMutex);
 
         if (verbose)
-            printChar(inputChar);
+            printChar(inputChar, verbose, inputBuffer);
 
         if (inputChar == '\n')
         {
@@ -136,13 +112,13 @@ static void* readLoop(void* arg)
             }
 
             if (inputChar == '\t')
-                tabToSpaces();
+                tabToSpaces(verbose, inputBuffer);
             else if (isprint(inputChar))
-                printChar(inputChar);
+                printChar(inputChar, verbose, inputBuffer);
         }
 
-        //fprintf(debugFile, "%.03f: inputchar = %c (%d) (%d)\n",
-        //    proc_runtime(), inputChar, inputChar, isprint(inputChar));
+        fprintf(debugFile, "%.03f: inputchar = %c (%d) (%d)\n", proc_runtime(), inputChar,
+                inputChar, isprint(inputChar));
 
         fflush(stdout);
         sem_post(&outputMutex);

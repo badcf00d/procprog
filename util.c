@@ -22,6 +22,7 @@
 
 extern struct timespec procStartTime;
 extern FILE* debugFile;
+extern unsigned numCharacters;
 
 
 unsigned printable_strlen(const char* str)
@@ -45,6 +46,30 @@ unsigned printable_strlen(const char* str)
         str++;
     }
     return length;
+}
+
+
+
+void printChar(char character, bool verbose, char* inputBuffer)
+{
+    putchar(character);
+
+    if (!verbose)
+    {
+        if ((inputBuffer) && (numCharacters < 2048))
+            *(inputBuffer + numCharacters) = character;
+        numCharacters++;
+    }
+}
+
+
+void tabToSpaces(bool verbose, char* inputBuffer)
+{
+    printChar(' ', verbose, inputBuffer);
+    while ((numCharacters % 8) != 0)
+    {
+        printChar(' ', verbose, inputBuffer);
+    }
 }
 
 

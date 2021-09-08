@@ -1,6 +1,6 @@
 #include <stdbool.h>      // for bool, false, true
-#include <stdio.h>        // for fputs, stdout, fflush, fprintf, printf, FILE
-#include <sys/ioctl.h>    // for winsize
+#include <stdio.h>        // for fputs, stdout, printf, fflush, fprintf, FILE
+#include <sys/ioctl.h>    // for ioctl, winsize, TIOCGWINSZ, TIOCSWINSZ
 #include "util.h"         // for proc_runtime
 
 
@@ -60,8 +60,8 @@ void tidyStats(void)
 
 void clearScreen(void)
 {
-    fprintf(debugFile, "%.03f: height: %d, width: %d, numChar: %u\n", proc_runtime(),
-            termSize.ws_row, termSize.ws_col, numCharacters);
+    //fprintf(debugFile, "%.03f: height: %d, width: %d, numChar: %u\n", proc_runtime(),
+    //        termSize.ws_row, termSize.ws_col, numCharacters);
 
     if (alternateBuffer)
     {
