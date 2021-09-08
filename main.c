@@ -1,24 +1,25 @@
 #define _GNU_SOURCE
-#include <bits/types/__sigval_t.h>    // for sigval
+#include <bits/types/__sigval_t.h>    // for __sigval_t
 #include <ctype.h>                    // for isprint
 #include <errno.h>                    // for EINTR, errno
 #include <pthread.h>                  // for pthread_create, pthread_join, pth...
 #include <semaphore.h>                // for sem_post, sem_wait, sem_destroy
 #include <signal.h>                   // for sigaction, sigemptyset, sa_handler
 #include <stdbool.h>                  // for false, true, bool
-#include <stdio.h>                    // for fflush, printf, NULL, fclose, fputs
+#include <stdio.h>                    // for fflush, NULL, printf, fclose, fputs
 #include <stdlib.h>                   // for EXIT_FAILURE, calloc, exit, WEXIT...
 #include <stdnoreturn.h>              // for noreturn
 #include <string.h>                   // for memset, strsignal
-#include <sys/ioctl.h>                // for ioctl, winsize, TIOCGWINSZ
+#include <sys/ioctl.h>                // for winsize, ioctl, TIOCGWINSZ
 #include <sys/time.h>                 // for CLOCK_MONOTONIC, CLOCK_REALTIME
 #include <sys/wait.h>                 // for wait
+#include <termios.h>                  // for tcsetattr, tcgetattr
 #include <time.h>                     // for clock_gettime, timespec
-#include <unistd.h>                   // for close, dup2, execvp, fork, pipe
-#include "graphics.h"                 // for setScrollArea, tidyStats, clearSc...
+#include <unistd.h>                   // for close, STDIN_FILENO, dup2, read
+#include "graphics.h"                 // for setScrollArea, gotoStatLine, clea...
 #include "stats.h"                    // for printStats, advanceSpinner
 #include "timer.h"                    // for portable_tick_create, MSEC_TO_NSEC
-#include "util.h"                     // for showError, proc_runtime, getArgs
+#include "util.h"                     // for showError, proc_runtime, printChar
 
 /*
 Useful shell one-liner to test:
@@ -46,6 +47,7 @@ static const char* childProcessName;
 static char* inputBuffer;
 static FILE* outputFile;
 static bool verbose;
+struct termios termRestore;
 
 
 
@@ -66,6 +68,8 @@ static void tickCallback(__sigval_t sv)
 
 static void initConsole(void)
 {
+    struct termios term;
+
     if (!verbose)
     {
         inputBuffer = (char*)calloc(sizeof(char), 2048);
@@ -74,6 +78,12 @@ static void initConsole(void)
     }
 
     sem_wait(&outputMutex);
+
+    tcgetattr(STDIN_FILENO, &term);
+    tcgetattr(STDIN_FILENO, &termRestore);
+    term.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &term);
+
     setScrollArea(termSize.ws_row, true);
     sem_post(&outputMutex);
 }
@@ -85,7 +95,6 @@ static void* readLoop(void* arg)
     bool needsClearing = false;
     int procPipe = *(int*)arg;
 
-    initConsole();
     while (read(procPipe, &inputChar, 1) > 0)
     {
         if (outputFile != NULL)
@@ -128,6 +137,34 @@ static void* readLoop(void* arg)
 
 
 
+static void* inputLoop(void* arg)
+{
+    char inputChar;
+    (void)(arg);
+
+    while (read(STDIN_FILENO, &inputChar, 1) > 0)
+    {
+        if (outputFile != NULL)
+            fwrite(&inputChar, sizeof(inputChar), 1, outputFile);
+
+        sem_wait(&outputMutex);
+
+        if (isprint(inputChar))
+        {
+            printChar(inputChar, verbose, inputBuffer);
+            fflush(stdout);
+        }
+
+        fprintf(debugFile, "%.03f: inputloop: inputchar = %c (%d) (%d)\n", proc_runtime(),
+                inputChar, inputChar, isprint(inputChar));
+
+        sem_post(&outputMutex);
+    }
+    return NULL;
+}
+
+
+
 static void* redrawThread(void* arg)
 {
     struct timespec currentTime;
@@ -161,7 +198,9 @@ static void* redrawThread(void* arg)
             goto debounce;
 
         setScrollArea(termSize.ws_row, verbose);
-        fputs("\n", stdout);
+        if (!alternateBuffer)
+            fputs("\n", stdout);
+
         printStats(true);
         if ((!verbose) && (inputBuffer))
         {
@@ -178,7 +217,7 @@ static void* redrawThread(void* arg)
 static void sigwinchHandler(int sigNum)
 {
     (void)(sigNum);
-    ioctl(0, TIOCGWINSZ, &termSize);
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &termSize);
     sem_post(&redrawMutex);
     //fprintf(debugFile, "SIGWINCH raised, window size: %d rows / %d columns\n", termSize.ws_row, termSize.ws_col);
 }
@@ -201,6 +240,7 @@ static void sigintHandler(int sigNum)
            proc_runtime());
 
     fflush(stdout);
+    tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
     exit(EXIT_SUCCESS);
 }
 
@@ -249,16 +289,20 @@ noreturn static int runCommand(int procPipe[2], const char** commandLine)
 
 static void readOutput(int procPipe[2])
 {
-    pthread_t threadId, readThread;
+    pthread_t threadId, readThread, inputThread;
     int exitStatus;
 
     close(procPipe[1]);    // Close write end of fd, only need read
     setupInterupts();
+    initConsole();
 
     if (pthread_create(&readThread, NULL, &readLoop, &procPipe[0]) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
 
     if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
+        showError(EXIT_FAILURE, false, "pthread_create failed\n");
+
+    if (pthread_create(&inputThread, NULL, &inputLoop, NULL) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
 
 
@@ -275,6 +319,7 @@ static void readOutput(int procPipe[2])
         fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
     setScrollArea(termSize.ws_row + 1, false);
     gotoStatLine();
+    tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
 
     if (WIFSTOPPED(exitStatus))
         printf("(%s) stopped by signal %d in %.03fs\n", childProcessName, WSTOPSIG(exitStatus),
