@@ -306,10 +306,10 @@ static void readOutput(int procPipe[2])
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
 
 
-    portable_tick_create(tickCallback, 1, 0, false);
+    portable_tick_create(tickCallback, 1U, 0U, false);
 #if __linux__
     // CPU usage needs to be taken over a time interval
-    portable_tick_create(tickCallback, 0, MSEC_TO_NSEC(50), true);
+    portable_tick_create(tickCallback, 0U, MSEC_TO_NSEC(50U), true);
 #endif
 
     wait(&exitStatus);
