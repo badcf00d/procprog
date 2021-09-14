@@ -1,6 +1,3 @@
-#ifdef __APPLE__
-#include <mach/mach.h>
-#endif
 #include <stdbool.h>        // for bool
 #include <stdio.h>          // for FILE
 #include <stdnoreturn.h>    // for noreturn

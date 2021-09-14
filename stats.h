@@ -34,15 +34,8 @@ struct diskReading
 
 struct cpuStat
 {
-#ifdef __APPLE__
-    natural_t tBusy;
-    natural_t tIdle;
-#elif __linux__
     unsigned long long tBusy;
     unsigned long long tIdle;
-#else
-#error "Don't have a CPU usage implemenatation for this OS"
-#endif
 };
 
 void printStats(bool redraw);

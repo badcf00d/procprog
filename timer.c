@@ -1,10 +1,4 @@
 #define _POSIX_C_SOURCE 200809L
-#ifdef __APPLE__
-#include <dispatch/dispatch.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdbool.h>
-#else
 #include <bits/types/__sigval_t.h>           // for sigval
 #include <bits/types/sigevent_t.h>           // for sigev_notify_attributes
 #include <bits/types/struct_itimerspec.h>    // for itimerspec
@@ -13,45 +7,12 @@
 #include <stdbool.h>                         // for bool
 #include <sys/time.h>                        // for CLOCK_MONOTONIC
 #include <time.h>                            // for timer_create, timer_settime
-#endif
 
 
 
 
-void portable_tick_create(void (*callback)(__sigval_t), unsigned int sec, unsigned int nsec,
-                          bool once)
+void tick_create(void (*callback)(__sigval_t), unsigned int sec, unsigned int nsec, bool once)
 {
-#ifdef __APPLE__
-
-    /*
-        Credit to https://stackoverflow.com/questions/44807302/create-c-timer-in-macos/52905687#52905687
-    */
-
-    static dispatch_queue_t queue;
-    static dispatch_source_t timer;
-
-    queue = dispatch_queue_create("timerQueue", 0);
-    timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, queue);
-
-    dispatch_source_set_event_handler(timer, ^{
-      callback();
-      if (once)
-      {
-          dispatch_source_cancel(timer);
-      }
-    });
-
-    dispatch_source_set_cancel_handler(timer, ^{
-      dispatch_release(timer);
-      dispatch_release(queue);
-    });
-
-    dispatch_time_t start = dispatch_time(DISPATCH_TIME_NOW, (once) ? nsec : 1);
-    dispatch_source_set_timer(timer, start, sec * NSEC_PER_SEC, 0);
-    dispatch_resume(timer);
-
-#elif __linux__
-
     struct sigevent timerEvent = {
         .sigev_notify = SIGEV_THREAD,
         .sigev_notify_function = callback,
@@ -67,8 +28,4 @@ void portable_tick_create(void (*callback)(__sigval_t), unsigned int sec, unsign
 
     timer_create(CLOCK_MONOTONIC, &timerEvent, &timer);
     timer_settime(timer, 0, &timerPeriod, NULL);
-
-#else
-#error "Don't have a timer implementation for this system"
-#endif
 }

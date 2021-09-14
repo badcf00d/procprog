@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+
 #include <printf.h>       // for parse_printf_format
 #include <stdarg.h>       // for va_end, va_list, va_start, va_arg
 #include <stdbool.h>      // for false, bool, true
@@ -51,22 +52,6 @@ static bool getCPUUsage(float* usage)
     if (usage == NULL)
         return false;
 
-#ifdef __APPLE__
-    mach_msg_type_number_t count;
-    host_cpu_load_info_data_t r_load;
-    struct cpuStat newReading;
-    static struct cpuStat oldReading;
-
-    count = HOST_CPU_LOAD_INFO_COUNT;
-    if (host_statistics(mach_host_self(), HOST_CPU_LOAD_INFO, (host_info_t*)&r_load, &count))
-    {
-        return false;
-    }
-
-    newReading.tBusy = r_load.cpu_ticks[CPU_STATE_SYSTEM] + r_load.cpu_ticks[CPU_STATE_USER] +
-                       r_load.cpu_ticks[CPU_STATE_NICE];
-    newReading.tIdle = r_load.cpu_ticks[CPU_STATE_IDLE];
-#elif __linux__
     FILE* fp;
     char* retVal;
     char statLine[256];    // Theoretically this could be up to ~220 characters, usually ~50
@@ -97,9 +82,6 @@ static bool getCPUUsage(float* usage)
                        statBuffer.tSoftIrq + statBuffer.tSteal + statBuffer.tGuest +
                        statBuffer.tGuestNice;
     newReading.tIdle = statBuffer.tIdle + statBuffer.tIoWait;
-#else
-#error "Don't have a CPU usage implemenatation for this OS"
-#endif
 
     if ((oldReading.tBusy == 0) && (oldReading.tIdle == 0))
     {
@@ -128,9 +110,6 @@ static bool getMemUsage(float* usage)
     if (usage == NULL)
         return false;
 
-#ifdef __APPLE__
-        // TODO
-#elif __linux__
     char memLine[64];    // should really be around 30 characters
     FILE* fp;
     unsigned long memAvailable = 0, memTotal = 0;
@@ -155,9 +134,6 @@ static bool getMemUsage(float* usage)
         }
     }
     fclose(fp);
-#else
-#error "Don't have a memory usage implemenatation for this OS"
-#endif
 
     if ((fieldsFound == 0b11) && (memTotal != 0))
     {
@@ -178,9 +154,6 @@ static bool getNetdevUsage(float* download, float* upload)
     if ((download == NULL) || (upload == NULL))
         return false;
 
-#ifdef __APPLE__
-        // TODO
-#elif __linux__
     static struct netDevReading oldReading;
     struct netDevReading newReading = {0};
     unsigned long long bytesDown, bytesUp;
@@ -210,9 +183,6 @@ static bool getNetdevUsage(float* download, float* upload)
         }
     }
     fclose(fp);
-#else
-#error "Don't have a network usage implemenatation for this OS"
-#endif
 
     if ((newReading.bytesDown == 0) && (newReading.bytesUp == 0))
     {
@@ -249,9 +219,6 @@ static bool getDiskUsage(float* activity)
     if (activity == NULL)
         return false;
 
-#ifdef __APPLE__
-        // TODO
-#elif __linux__
     static struct diskReading oldReading;
     struct diskReading newReading;
     struct timespec timeDiff;
@@ -280,9 +247,6 @@ static bool getDiskUsage(float* activity)
         }
     }
     fclose(fp);
-#else
-#error "Don't have a disk usage implemenatation for this OS"
-#endif
 
     if (oldReading.time.tv_sec == 0)
     {

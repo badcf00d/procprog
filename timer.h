@@ -1,6 +1,6 @@
 #include <bits/types/__sigval_t.h>    // for __sigval_t
-void portable_tick_create(void (*callback)(__sigval_t sigval), unsigned int sec, unsigned int nsec,
-                          bool once);
+void tick_create(void (*callback)(__sigval_t sigval), unsigned int sec, unsigned int nsec,
+                 bool once);
 
 
 // clang-format off

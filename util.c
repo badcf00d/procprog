@@ -14,11 +14,6 @@
 #include "timer.h"               // for timespecsub, SEC_TO_MSEC
 #include "util.h"
 #include "graphics.h"
-#if __APPLE__
-#include <Availability.h>
-#include <sys/sysctl.h>
-#include <mach/mach.h>
-#endif
 
 extern struct timespec procStartTime;
 extern FILE* debugFile;

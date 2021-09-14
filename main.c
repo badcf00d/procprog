@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+
 #include <bits/types/__sigval_t.h>    // for __sigval_t
 #include <ctype.h>                    // for isprint
 #include <errno.h>                    // for EINTR, errno
@@ -18,7 +19,7 @@
 #include <unistd.h>                   // for close, STDIN_FILENO, dup2, read
 #include "graphics.h"                 // for setScrollArea, gotoStatLine, clea...
 #include "stats.h"                    // for printStats, advanceSpinner
-#include "timer.h"                    // for portable_tick_create, MSEC_TO_NSEC
+#include "timer.h"                    // for tick_create, MSEC_TO_NSEC
 #include "util.h"                     // for showError, proc_runtime, printChar
 
 /*
@@ -51,15 +52,9 @@ struct termios termRestore;
 
 
 
-#ifdef __APPLE__
-static void tickCallback(dispatch_source_t timer)
-{
-    (void)timer;
-#elif __linux__
 static void tickCallback(__sigval_t sv)
 {
     (void)sv;
-#endif
     sem_wait(&outputMutex);
     printStats(false);
     sem_post(&outputMutex);
@@ -306,10 +301,10 @@ static void readOutput(int procPipe[2])
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
 
 
-    portable_tick_create(tickCallback, 1U, 0U, false);
+    tick_create(tickCallback, 1U, 0U, false);
 #if __linux__
     // CPU usage needs to be taken over a time interval
-    portable_tick_create(tickCallback, 0U, MSEC_TO_NSEC(50U), true);
+    tick_create(tickCallback, 0U, MSEC_TO_NSEC(50U), true);
 #endif
 
     wait(&exitStatus);
