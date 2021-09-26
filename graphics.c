@@ -30,20 +30,6 @@ void returnToStartLine(bool clearText)
 }
 
 
-void setScrollArea(unsigned numLines, bool newline)
-{
-    if (newline)
-        fputs("\n", stdout);
-
-    fputs("\e[s", stdout);
-    printf("\e[0;%ur", numLines - 1);
-    fputs("\e[u", stdout);
-
-    if (newline)
-        fputs("\e[1A", stdout);
-}
-
-
 void gotoStatLine(void)
 {
     // Clear screen below cursor, move to bottom of screen

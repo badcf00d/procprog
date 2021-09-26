@@ -11,13 +11,16 @@
 #include <stdlib.h>              // for exit, EXIT_FAILURE, EXIT_SUCCESS
 #include <stdnoreturn.h>         // for noreturn
 #include <sys/time.h>            // for CLOCK_MONOTONIC
+#include <sys/ioctl.h>           // for ioctl, winsize, TIOCGWINSZ, TIOCSWINSZ
 #include "timer.h"               // for timespecsub, SEC_TO_MSEC
 #include "util.h"
 #include "graphics.h"
+#include "stats.h"
 
 extern struct timespec procStartTime;
 extern FILE* debugFile;
 extern unsigned numCharacters;
+extern volatile struct winsize termSize;
 
 
 unsigned printable_strlen(const char* str)
@@ -44,17 +47,29 @@ unsigned printable_strlen(const char* str)
 }
 
 
+static void checkStats(void)
+{
+    if (numCharacters > termSize.ws_col)
+    {
+        if ((numCharacters % termSize.ws_col) == 0)
+            printStats(true, true);
+    }
+    else if (numCharacters == termSize.ws_col)
+        printStats(true, true);
+}
+
 
 void printChar(char character, bool verbose, char* inputBuffer)
 {
-    putchar(character);
-
     if (!verbose)
     {
         if ((inputBuffer) && (numCharacters < 2048))
             *(inputBuffer + numCharacters) = character;
-        numCharacters++;
     }
+
+    checkStats();
+    putchar(character);
+    numCharacters++;
 }
 
 

@@ -56,7 +56,7 @@ static void tickCallback(__sigval_t sv)
 {
     (void)sv;
     sem_wait(&outputMutex);
-    printStats(false);
+    printStats(false, false);
     sem_post(&outputMutex);
 }
 
@@ -79,7 +79,7 @@ static void initConsole(void)
     term.c_lflag &= ~(ICANON | ECHO);
     tcsetattr(STDIN_FILENO, TCSANOW, &term);
 
-    setScrollArea(termSize.ws_row, true);
+    fputs("\n\e[1A", stdout);    // Set the cursor to out starting position
     sem_post(&outputMutex);
 }
 
@@ -87,7 +87,7 @@ static void initConsole(void)
 static void* readLoop(void* arg)
 {
     char inputChar;
-    bool needsClearing = false;
+    bool newLine = false;
     int procPipe = *(int*)arg;
 
     while (read(procPipe, &inputChar, 1) > 0)
@@ -98,27 +98,44 @@ static void* readLoop(void* arg)
         sem_wait(&outputMutex);
 
         if (verbose)
-            printChar(inputChar, verbose, inputBuffer);
-
-        if (inputChar == '\n')
         {
-            needsClearing = true;
-            advanceSpinner();
-        }
-        else if (!verbose)
-        {
-            if (needsClearing)
+            if (inputChar == '\t')
             {
-                memset(inputBuffer, 0, 2048);
-                returnToStartLine(true);
-                needsClearing = false;
+                tabToSpaces(verbose, inputBuffer);
+            }
+            else if (inputChar == '\n')
+            {
+                printStats(true, true);
                 numCharacters = 0;
             }
-
-            if (inputChar == '\t')
-                tabToSpaces(verbose, inputBuffer);
             else if (isprint(inputChar))
+            {
                 printChar(inputChar, verbose, inputBuffer);
+            }
+        }
+        else
+        {
+            if (inputChar == '\n')
+            {
+                advanceSpinner();
+                newLine = true;
+            }
+            else
+            {
+                if (newLine)
+                {
+                    memset(inputBuffer, 0, 2048);
+                    printStats(false, true);
+                    returnToStartLine(true);
+                    numCharacters = 0;
+                    newLine = false;
+                }
+
+                if (inputChar == '\t')
+                    tabToSpaces(verbose, inputBuffer);
+                else if (isprint(inputChar))
+                    printChar(inputChar, verbose, inputBuffer);
+            }
         }
 
         fprintf(debugFile, "%.03f: inputchar = %c (%d) (%d)\n", proc_runtime(), inputChar,
@@ -192,11 +209,7 @@ static void* redrawThread(void* arg)
         if (retval == 0)
             goto debounce;
 
-        setScrollArea(termSize.ws_row, verbose);
-        if (!alternateBuffer)
-            fputs("\n", stdout);
-
-        printStats(true);
+        printStats(false, true);
         if ((!verbose) && (inputBuffer))
         {
             fputs(inputBuffer, stdout);
@@ -226,14 +239,12 @@ static void sigintHandler(int sigNum)
     if (outputFile != NULL)
         fclose(outputFile);
 
-    if (alternateBuffer)
-        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
-
-    setScrollArea(termSize.ws_row + 1, false);
-    gotoStatLine();
-    printf("(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum), sigNum,
+    tidyStats();
+    printf("\n(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum), sigNum,
            proc_runtime());
 
+    if (alternateBuffer)
+        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
     fflush(stdout);
     tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
     exit(EXIT_SUCCESS);
@@ -312,7 +323,6 @@ static void readOutput(int procPipe[2])
 
     if (alternateBuffer)
         fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
-    setScrollArea(termSize.ws_row + 1, false);
     gotoStatLine();
     tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
 
@@ -363,6 +373,9 @@ int main(int argc, char** argv)
         runCommand(procPipe, commandLine);
     else
         readOutput(procPipe);
+
+    if (alternateBuffer)
+        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
     fflush(stdout);
 
     sem_destroy(&outputMutex);
