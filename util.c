@@ -76,9 +76,16 @@ void printChar(char character, bool verbose, char* inputBuffer)
 void tabToSpaces(bool verbose, char* inputBuffer)
 {
     printChar(' ', verbose, inputBuffer);
-    while ((numCharacters % 8) != 0)
+
+    if (numCharacters > termSize.ws_col)
     {
-        printChar(' ', verbose, inputBuffer);
+        while ((numCharacters - termSize.ws_col) % 8)
+            printChar(' ', verbose, inputBuffer);
+    }
+    else
+    {
+        while ((numCharacters % 8) && (numCharacters < termSize.ws_col))
+            printChar(' ', verbose, inputBuffer);
     }
 }
 
