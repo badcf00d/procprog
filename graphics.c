@@ -11,13 +11,14 @@ extern bool alternateBuffer;
 
 void returnToStartLine(bool clearText)
 {
-    unsigned numLines = numCharacters / (termSize.ws_col + 1);
+    unsigned numLines = (numCharacters + termSize.ws_col - 1) / termSize.ws_col;
+
     //fprintf(debugFile, "height: %d, width: %d, numChar: %d, numLines = %d\n",
     //            termSize.ws_row, termSize.ws_col, numCharacters, numLines);
 
     if (clearText)
     {
-        for (unsigned i = 0; i < numLines; i++)
+        for (unsigned i = 1; i < numLines; i++)
         {
             fputs("\e[2K\e[1A", stdout);
         }
