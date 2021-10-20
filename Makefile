@@ -22,6 +22,7 @@ endif
 HEADER := $(subst //,/,$(wildcard $(SRC_DIR)/*.h))
 SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
 OBJ := $(SRC:$(SRC_DIR)%.c=$(OBJ_DIR)/%.o)
+DOT := $(EXE).ltrans0.231t.optimized.dot
 CFLAGS := -Wall -Wextra -fverbose-asm -flto -std=c99
 
 TIDY_CHECKS := clang-analyzer-*,performance-*,portability-*,misc-*,cert-*
@@ -37,6 +38,7 @@ all: $(EXE)
 
 $(EXE): $(OBJ)
 	@$(CC) $^ $(LIBS) $(CFLAGS) -o $(EXE)
+	@sync
 	$(info Executable compiled to $(shell realpath --relative-to=$(shell pwd) $@))
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
@@ -44,7 +46,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(info $(CC): $(notdir $<))
 
 clean:
-	@rm -f ./$(OBJ_DIR)/* ./$(EXE)
+	@rm -f ./$(OBJ_DIR)/* ./$(EXE) ./$(EXE).graph.svg $(wildcard $(SRC_DIR)/*.dot) $(wildcard $(SRC_DIR)/*.optimized)
 
 install: $(EXE)
 	@mkdir -p $(DESTDIR)$(PREFIX)/bin
@@ -78,3 +80,11 @@ format: $(SRC) $(HEADER)
 cppcheck: $(SRC) $(HEADER)
 	$(info cppcheck: $^)
 	@cppcheck --force --quiet $(CPPCHECK_CHECKS) $(CPPCHECK_IGNORE) $(SRC_DIR)
+
+graph: CC := gcc
+graph: CFLAGS += -fdump-tree-optimized-graph
+graph: clean all
+graph: $(EXE).graph.svg
+
+%.graph.svg: $(DOT)
+	dot -Tsvg $< -o $@
