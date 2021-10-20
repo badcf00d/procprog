@@ -7,12 +7,16 @@ from time import sleep
 
 #
 # Tester for procprog
-# Example: ./procprog python3 self-test.py $(tput cols)
+# Example: make && ./procprog python3 self-test.py $(tput cols)
 #
 
+try:
+    termWidth = int(sys.argv[1])
+except:
+    sys.exit("Add $(tput cols) to your command")
 
 extented_ascii = [chr(i) for i in range(256)]
-termWidth = int(sys.argv[1])
+
 
 def fullWidth():
     for i in range(1,10):
