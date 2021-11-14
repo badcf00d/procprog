@@ -125,7 +125,7 @@ static void* readLoop(void* arg)
                 if (inputChar == '\t')
                     tabToSpaces(verbose, inputBuffer);
                 else if (isprint(inputChar) || (inputChar == '\e') || (inputChar == '\b'))
-                    printChar(inputChar, verbose, inputBuffer);
+                    processChar(inputChar, verbose, inputBuffer);
             }
         }
 
@@ -142,8 +142,8 @@ static void* readLoop(void* arg)
 
 static void* inputLoop(void* arg)
 {
-    char inputChar;
-    (void)(arg);
+    unsigned char inputChar;
+    int childStdIn = *(int*)arg;
 
     while (read(STDIN_FILENO, &inputChar, 1) > 0)
     {
@@ -157,9 +157,10 @@ static void* inputLoop(void* arg)
             printChar(inputChar, verbose, inputBuffer);
             fflush(stdout);
         }
+        write(childStdIn, &inputChar, 1);
 
-        fprintf(debugFile, "%.03f: inputloop: inputchar = %c (%d) (%d)\n", proc_runtime(),
-                inputChar, inputChar, isprint(inputChar));
+        fprintf(debugFile, "in: %.03f: %c (%u) (%d)\n", proc_runtime(), inputChar, inputChar,
+                isprint(inputChar));
 
         sem_post(&outputMutex);
     }
@@ -267,15 +268,18 @@ static void setupInterupts(void)
 
 
 
-noreturn static int runCommand(int procPipe[2], const char** commandLine)
+noreturn static int runCommand(int outputPipe[2], int inputPipe[2], const char** commandLine)
 {
     const char* command;
     int status_code;
 
-    dup2(procPipe[1], STDERR_FILENO);
-    dup2(procPipe[1], STDOUT_FILENO);
-    close(procPipe[0]);
-    close(procPipe[1]);
+    dup2(outputPipe[1], STDERR_FILENO);
+    dup2(outputPipe[1], STDOUT_FILENO);
+    dup2(inputPipe[0], STDIN_FILENO);
+    close(outputPipe[0]);
+    close(outputPipe[1]);
+    close(inputPipe[0]);
+    close(inputPipe[1]);
 
     command = commandLine[0];
     status_code = execvp(command, (char* const*)commandLine);
@@ -284,24 +288,24 @@ noreturn static int runCommand(int procPipe[2], const char** commandLine)
 }
 
 
-static void readOutput(int procPipe[2])
+static void readOutput(int outputPipe[2], int inputPipe[2])
 {
     pthread_t threadId, readThread, inputThread;
     int exitStatus;
 
-    close(procPipe[1]);    // Close write end of fd, only need read
+    close(outputPipe[1]);    // Close write end of fd, only need read
+    close(inputPipe[0]);     // Close read end of fd, only need write
     setupInterupts();
     initConsole();
 
-    if (pthread_create(&readThread, NULL, &readLoop, &procPipe[0]) != 0)
+    if (pthread_create(&readThread, NULL, &readLoop, &outputPipe[0]) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
 
     if (pthread_create(&threadId, NULL, &redrawThread, NULL) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
 
-    if (pthread_create(&inputThread, NULL, &inputLoop, NULL) != 0)
+    if (pthread_create(&inputThread, NULL, &inputLoop, &inputPipe[1]) != 0)
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
-
 
     tick_create(tickCallback, 1U, 0U, false);
 #if __linux__
@@ -335,10 +339,13 @@ static void readOutput(int procPipe[2])
 int main(int argc, char** argv)
 {
     const char** commandLine;
-    int procPipe[2];
+    int outputPipe[2];
+    int inputPipe[2];
     pid_t pid;
 
-    if (pipe(procPipe) != 0)
+    if (pipe(outputPipe) != 0)
+        showError(EXIT_FAILURE, false, "pipe failed\n");
+    if (pipe(inputPipe) != 0)
         showError(EXIT_FAILURE, false, "pipe failed\n");
 
     if (sem_init(&outputMutex, false, 1) != 0)
@@ -361,9 +368,9 @@ int main(int argc, char** argv)
     if (pid < 0)
         showError(EXIT_FAILURE, false, "fork failed\n");
     else if (pid == 0)
-        runCommand(procPipe, commandLine);
+        runCommand(outputPipe, inputPipe, commandLine);
     else
-        readOutput(procPipe);
+        readOutput(outputPipe, inputPipe);
 
     if (alternateBuffer)
         fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
