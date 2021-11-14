@@ -12,7 +12,9 @@
 #include <stdnoreturn.h>         // for noreturn
 #include <sys/time.h>            // for CLOCK_MONOTONIC
 #include <sys/ioctl.h>           // for ioctl, winsize, TIOCGWINSZ, TIOCSWINSZ
-#include "timer.h"               // for timespecsub, SEC_TO_MSEC
+#include <string.h>
+#include <ctype.h>
+#include "timer.h"    // for timespecsub, SEC_TO_MSEC
 #include "util.h"
 #include "graphics.h"
 #include "stats.h"
@@ -21,7 +23,61 @@ extern struct timespec procStartTime;
 extern FILE* debugFile;
 extern unsigned numCharacters;
 extern volatile struct winsize termSize;
+static char csiCommandBuf[16] = {0};
+static char* pBuf = csiCommandBuf;
 
+static void clear_csi_buffer(void)
+{
+    memset(csiCommandBuf, 0, sizeof(csiCommandBuf));
+    pBuf = csiCommandBuf;
+}
+
+static bool check_csi_command(const unsigned char inputChar, bool* escaped)
+{
+    bool validCommand = false;
+    unsigned commandLen = (pBuf - csiCommandBuf);
+
+    if (commandLen >= (sizeof(csiCommandBuf) - 1U))
+    {
+        // No valid command should ever be this long, just drop it
+        clear_csi_buffer();
+        *escaped = false;
+        //fprintf(debugFile, "csi: %.03f: too long %c (%u)\n", proc_runtime(), inputChar, inputChar);
+    }
+    else if ((commandLen == 1) && (inputChar != '['))
+    {
+        clear_csi_buffer();
+        *escaped = false;
+        //fprintf(debugFile, "csi: %.03f: not a csi command %c (%u)\n", proc_runtime(), inputChar, inputChar);
+    }
+    else
+    {
+        *pBuf++ = inputChar;
+
+        if (isalpha(inputChar))
+        {
+            switch (inputChar)
+            {
+            case 'C':    // Cursor forward
+            case 'D':    // Cursor back
+            case 'G':    // Cursor horizontal position
+            case 'K':    // Erase in line
+            case 'm':    // Test formatting
+            case 'n':    // Test formatting
+                validCommand = true;
+                //fprintf(debugFile, "csi: %.03f: allowed %c (%u)\n", proc_runtime(), inputChar, inputChar);
+                break;
+            default:
+                //fprintf(debugFile, "csi: %.03f: blocked %c (%u)\n", proc_runtime(), inputChar, inputChar);
+                clear_csi_buffer();
+                break;
+            }
+            *escaped = false;
+        }
+    }
+
+    return validCommand;
+}
 
 unsigned printable_strlen(const char* str)
 {
@@ -59,17 +115,35 @@ static void checkStats(void)
 }
 
 
-void printChar(char character, bool verbose, char* inputBuffer)
+void printChar(unsigned char character, bool verbose, char* inputBuffer)
 {
-    if (!verbose)
+    static bool escaped;
+    if (character == '\e')
     {
-        if ((inputBuffer) && (numCharacters < 2048))
-            *(inputBuffer + numCharacters) = character;
+        escaped = true;
+        clear_csi_buffer();
+        fprintf(debugFile, "csi: %.03f: escaped\n", proc_runtime());
     }
 
-    checkStats();
-    putchar(character);
-    numCharacters++;
+    if (escaped)
+    {
+        if (check_csi_command(character, &escaped))
+        {
+            fputs(csiCommandBuf, stdout);
+            clear_csi_buffer();
+        }
+    }
+    else
+    {
+        if (!verbose)
+        {
+            if ((inputBuffer) && (numCharacters < 2048))
+                *(inputBuffer + numCharacters) = character;
+        }
+        checkStats();
+        putchar(character);
+        numCharacters++;
+    }
 }
 
 

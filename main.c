@@ -67,14 +67,14 @@ static void initConsole(void)
     term.c_lflag &= ~(ICANON | ECHO);
     tcsetattr(STDIN_FILENO, TCSANOW, &term);
 
-    fputs("\n\e[1A", stdout);    // Set the cursor to out starting position
+    fputs("\n\e[1A", stdout);    // Set the cursor to our starting position
     sem_post(&outputMutex);
 }
 
 
 static void* readLoop(void* arg)
 {
-    char inputChar;
+    unsigned char inputChar;
     bool newLine = false;
     int procPipe = *(int*)arg;
 
@@ -96,17 +96,20 @@ static void* readLoop(void* arg)
                 printStats(true, true);
                 numCharacters = 0;
             }
-            else if (isprint(inputChar))
+            //else if (isprint(inputChar))
             {
                 printChar(inputChar, verbose, inputBuffer);
             }
         }
         else
         {
-            if (inputChar == '\n')
+            if ((inputChar >= '\n') && (inputChar <= '\r'))
             {
-                advanceSpinner();
-                newLine = true;
+                if (!newLine)
+                {
+                    advanceSpinner();
+                    newLine = true;
+                }
             }
             else
             {
@@ -121,13 +124,13 @@ static void* readLoop(void* arg)
 
                 if (inputChar == '\t')
                     tabToSpaces(verbose, inputBuffer);
-                else if (isprint(inputChar))
+                else if (isprint(inputChar) || (inputChar == '\e') || (inputChar == '\b'))
                     printChar(inputChar, verbose, inputBuffer);
             }
         }
 
-        fprintf(debugFile, "%.03f: inputchar = %c (%d) (%d)\n", proc_runtime(), inputChar,
-                inputChar, isprint(inputChar));
+        fprintf(debugFile, "%.03f: %c (%u) (%d)\n", proc_runtime(), inputChar, inputChar,
+                isprint(inputChar));
 
         fflush(stdout);
         sem_post(&outputMutex);

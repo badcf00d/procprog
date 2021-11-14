@@ -331,7 +331,8 @@ void printStats(bool newLine, bool redraw)
     // cppcheck-suppress unreadVariable
     timespecsub(&currentTime, &procStartTime, &timeDiff);
 
-    sprintf(statOutput, "\e[1G\e[K" ANSI_FG_CYAN "%02ld:%02ld:%02ld %c" ANSI_RESET_ALL,
+    sprintf(statOutput,
+            "\e[1G\e[K" ANSI_RESET_ALL ANSI_FG_CYAN "%02ld:%02ld:%02ld %c" ANSI_RESET_ALL,
             (timeDiff.tv_sec % SECS_IN_DAY) / 3600, (timeDiff.tv_sec % 3600) / 60,
             (timeDiff.tv_sec % 60), spinner);
 
