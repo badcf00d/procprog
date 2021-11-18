@@ -58,3 +58,5 @@ void returnToStartLine(bool clearText);
 void gotoStatLine(void);
 void tidyStats(void);
 void clearScreen(void);
+void setTextFormat(void);
+void unsetTextFormat(void);

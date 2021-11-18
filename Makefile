@@ -23,7 +23,7 @@ HEADER := $(subst //,/,$(wildcard $(SRC_DIR)/*.h))
 SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
 OBJ := $(SRC:$(SRC_DIR)%.c=$(OBJ_DIR)/%.o)
 DOT := $(EXE).ltrans0.231t.optimized.dot
-CFLAGS := -Wall -Wextra -fverbose-asm -std=c99
+CFLAGS := -Wall -Wextra -fverbose-asm -std=gnu99
 
 TIDY_CHECKS := clang-analyzer-*,performance-*,portability-*,misc-*,cert-*
 TIDY_IGNORE := -clang-analyzer-valist.Uninitialized,-cert-err34-c

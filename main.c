@@ -44,7 +44,9 @@ static void tickCallback(__sigval_t sv)
 {
     (void)sv;
     sem_wait(&outputMutex);
+    unsetTextFormat();
     printStats(false, false);
+    setTextFormat();
     sem_post(&outputMutex);
 }
 
@@ -116,8 +118,10 @@ static void* readLoop(void* arg)
                 if (newLine)
                 {
                     memset(inputBuffer, 0, 2048);
+                    unsetTextFormat();
                     printStats(false, true);
                     returnToStartLine(true);
+                    setTextFormat();
                     numCharacters = 0;
                     newLine = false;
                 }
@@ -232,6 +236,7 @@ static void sigintHandler(int sigNum)
         fclose(outputFile);
 
     tidyStats();
+    unsetTextFormat();
     printf("\n(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum), sigNum,
            proc_runtime());
 
@@ -318,6 +323,7 @@ static void readOutput(int outputPipe[2], int inputPipe[2])
 
     if (alternateBuffer)
         fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
+    unsetTextFormat();
     gotoStatLine();
     tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
 
