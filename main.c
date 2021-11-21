@@ -95,12 +95,14 @@ static void* readLoop(void* arg)
             }
             else if (inputChar == '\n')
             {
+                unsetTextFormat();
                 printStats(true, true);
                 numCharacters = 0;
+                setTextFormat();
             }
-            //else if (isprint(inputChar))
+            else if (isprint(inputChar) || (inputChar == '\e') || (inputChar == '\b'))
             {
-                printChar(inputChar, verbose, inputBuffer);
+                processChar(inputChar, verbose, inputBuffer);
             }
         }
         else
@@ -158,7 +160,7 @@ static void* inputLoop(void* arg)
 
         if (isprint(inputChar))
         {
-            printChar(inputChar, verbose, inputBuffer);
+            processChar(inputChar, verbose, inputBuffer);
             fflush(stdout);
         }
         write(childStdIn, &inputChar, 1);
