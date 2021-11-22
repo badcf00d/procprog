@@ -17,7 +17,7 @@ else
 	endif
 endif
 ifeq ($(PREFIX),)
-    PREFIX := /usr/local
+    PREFIX := /usr
 endif
 HEADER := $(subst //,/,$(wildcard $(SRC_DIR)/*.h))
 SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
