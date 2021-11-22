@@ -53,7 +53,7 @@ debug: $(EXE)
 clean:
 	@rm -f ./$(OBJ_DIR)/* ./$(EXE) ./$(EXE).graph.svg $(wildcard $(SRC_DIR)/*.dot) $(wildcard $(SRC_DIR)/*.optimized)
 
-install: all
+install: $(EXE)
 	@mkdir -p $(DESTDIR)$(PREFIX)/bin
 	@install $< $(DESTDIR)$(PREFIX)/bin/$(EXE)
 	$(info Executable installed to $(DESTDIR)$(PREFIX)/bin/$(EXE))
