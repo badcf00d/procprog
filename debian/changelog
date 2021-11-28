@@ -1,0 +1,5 @@
+procprog (0.1-1) unstable; urgency=medium
+
+  * Initial release (Closes: #nnnn)  <nnnn is the bug number of your ITP>
+
+ -- Peter Frost <mail@pfrost.me>  Mon, 22 Nov 2021 01:27:26 +0000
