@@ -60,3 +60,5 @@ void tidyStats(void);
 void clearScreen(void);
 void setTextFormat(void);
 void unsetTextFormat(void);
+void processChar(unsigned char character, bool verbose, unsigned char* inputBuffer);
+void printChar(unsigned char character, bool verbose, unsigned char* inputBuffer);

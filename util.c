@@ -47,7 +47,7 @@ unsigned printable_strlen(const char* str)
 
 
 
-void tabToSpaces(bool verbose, char* inputBuffer)
+void tabToSpaces(bool verbose, unsigned char* inputBuffer)
 {
     printChar(' ', verbose, inputBuffer);
 
@@ -65,7 +65,7 @@ void tabToSpaces(bool verbose, char* inputBuffer)
 
 
 
-float proc_runtime(void)
+double proc_runtime(void)
 {
     struct timespec timeDiff;
     struct timespec now;

@@ -208,7 +208,20 @@ static void checkStats(void)
 }
 
 
-void processChar(unsigned char character, bool verbose, char* inputBuffer)
+void printChar(unsigned char character, bool verbose, unsigned char* inputBuffer)
+{
+    if (!verbose)
+    {
+        if ((inputBuffer) && (numCharacters < 2048))
+            *(inputBuffer + numCharacters) = character;
+    }
+    checkStats();
+    putchar(character);
+    numCharacters++;
+}
+
+
+void processChar(unsigned char character, bool verbose, unsigned char* inputBuffer)
 {
     static bool escaped;
     if (character == '\e')
@@ -230,17 +243,4 @@ void processChar(unsigned char character, bool verbose, char* inputBuffer)
     {
         printChar(character, verbose, inputBuffer);
     }
-}
-
-
-void printChar(unsigned char character, bool verbose, char* inputBuffer)
-{
-    if (!verbose)
-    {
-        if ((inputBuffer) && (numCharacters < 2048))
-            *(inputBuffer + numCharacters) = character;
-    }
-    checkStats();
-    putchar(character);
-    numCharacters++;
 }

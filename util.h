@@ -16,7 +16,5 @@ noreturn void showUsage(int status);
 noreturn void showVersion(int status);
 noreturn void showError(int status, bool shouldShowUsage, const char* format, ...)
     __attribute__((format(printf, 3, 4)));
-float proc_runtime(void);
-void printChar(unsigned char character, bool verbose, char* inputBuffer);
-void processChar(unsigned char character, bool verbose, char* inputBuffer);
-void tabToSpaces(bool verbose, char* inputBuffer);
+double proc_runtime(void);
+void tabToSpaces(bool verbose, unsigned char* inputBuffer);

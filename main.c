@@ -33,7 +33,7 @@ bool alternateBuffer = false;
 static sem_t outputMutex;
 static sem_t redrawMutex;
 static const char* childProcessName;
-static char* inputBuffer;
+static unsigned char* inputBuffer;
 static FILE* outputFile;
 static bool verbose;
 struct termios termRestore;
@@ -57,7 +57,7 @@ static void initConsole(void)
 
     if (!verbose)
     {
-        inputBuffer = (char*)calloc(sizeof(char), 2048);
+        inputBuffer = (unsigned char*)calloc(sizeof(unsigned char), 2048);
         if (!inputBuffer)
             showError(EXIT_FAILURE, false, "Input buffer calloc failed\n");
     }
@@ -210,7 +210,7 @@ static void* redrawThread(void* arg)
         printStats(false, true);
         if ((!verbose) && (inputBuffer))
         {
-            fputs(inputBuffer, stdout);
+            fputs((const char*)inputBuffer, stdout);
             fflush(stdout);
         }
         sem_post(&outputMutex);
@@ -229,7 +229,7 @@ static void sigwinchHandler(int sigNum)
 }
 
 
-static void sigintHandler(int sigNum)
+static noreturn void sigintHandler(int sigNum)
 {
     (void)sigNum;
     fclose(debugFile);
