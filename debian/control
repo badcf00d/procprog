@@ -1,5 +1,5 @@
 Source: procprog
-Section: unknown
+Section: utils
 Priority: optional
 Maintainer: Peter Frost <mail@pfrost.me>
 Build-Depends: debhelper-compat (= 12)
@@ -9,7 +9,7 @@ Vcs-Git: https://github.com/badcf00d/procprog.git
 
 Package: procprog
 Architecture: any
-Depends: none
+Depends: ${shlibs:Depends}
 Description: A program for showing process progress
  A program that runs a child process, showing an
  installer-style output showing just the most recent

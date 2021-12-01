@@ -23,7 +23,8 @@ HEADER := $(subst //,/,$(wildcard $(SRC_DIR)/*.h))
 SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
 OBJ := $(SRC:$(SRC_DIR)%.c=$(OBJ_DIR)/%.o)
 DOT := $(EXE).ltrans0.231t.optimized.dot
-CFLAGS := -Wall -Wextra -fverbose-asm -std=gnu99
+CFLAGS := -Wall -Wextra -fverbose-asm -std=gnu99 -fpie -D_FORTIFY_SOURCE=2
+LDFLAGS := $(CFLAGS) -pie
 
 TIDY_CHECKS := clang-analyzer-*,performance-*,portability-*,misc-*,cert-*
 TIDY_IGNORE := -clang-analyzer-valist.Uninitialized,-cert-err34-c
@@ -35,10 +36,11 @@ IWYU_FLAGS := -Xiwyu --no_fwd_decls
 
 
 all: CFLAGS += -flto
+all: LDFLAGS += -flto
 all: $(EXE)
 
 $(EXE): $(OBJ)
-	@$(CC) $^ $(LIBS) $(CFLAGS) -o $(EXE)
+	$(CC) $^ $(LIBS) $(LDFLAGS) -o $(EXE)
 	@sync
 	$(info Executable compiled to $(shell realpath --relative-to=$(shell pwd) $@))
 
@@ -48,6 +50,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 
 
 debug: CFLAGS += -g -Og
+debug: LDFLAGS += -g -Og
 debug: $(EXE)
 
 clean:
