@@ -6,14 +6,14 @@ OBJ_DIR := ./obj
 $(shell mkdir -p $(CURRENT_PATH)$(SRC_DIR) $(CURRENT_PATH)$(OBJ_DIR))
 
 ifeq ($(OS),Windows_NT)
-	LIBS := -lm -lrt -lpthread
+	LIBS := -lrt -lpthread
 else
 	UNAME_S := $(shell uname -s)
 	ifeq ($(UNAME_S),Linux)
-		LIBS := -lm -lrt -lpthread
+		LIBS := -lrt -lpthread
 	endif
 	ifeq ($(UNAME_S),Darwin)
-		LIBS := -lm -lpthread
+		LIBS := -lrt -lpthread
 	endif
 endif
 ifeq ($(PREFIX),)
@@ -23,7 +23,7 @@ HEADER := $(subst //,/,$(wildcard $(SRC_DIR)/*.h))
 SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
 OBJ := $(SRC:$(SRC_DIR)%.c=$(OBJ_DIR)/%.o)
 DOT := $(EXE).ltrans0.231t.optimized.dot
-CFLAGS := -Wall -Wextra -fverbose-asm -std=gnu99 -fpie -D_FORTIFY_SOURCE=2
+CFLAGS := -Wall -Wextra -std=gnu99 -fpie -D_FORTIFY_SOURCE=2 -g3
 LDFLAGS := $(CFLAGS) -pie
 
 TIDY_CHECKS := clang-analyzer-*,performance-*,portability-*,misc-*,cert-*
@@ -49,8 +49,8 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(info $(CC): $(CFLAGS) $(notdir $<))
 
 
-debug: CFLAGS += -g -Og
-debug: LDFLAGS += -g -Og
+debug: CFLAGS += -Og
+debug: LDFLAGS += -Og
 debug: $(EXE)
 
 clean:
