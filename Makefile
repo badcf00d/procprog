@@ -54,7 +54,7 @@ debug: LDFLAGS += -Og
 debug: $(EXE)
 
 clean:
-	@rm -f ./$(OBJ_DIR)/* ./$(EXE) ./$(EXE).graph.svg $(wildcard $(SRC_DIR)/*.dot) $(wildcard $(SRC_DIR)/*.optimized)
+	@rm -f ./$(OBJ_DIR)/* ./$(EXE) ./$(EXE).graph.svg $(EXE).1 $(wildcard $(SRC_DIR)/*.dot) $(wildcard $(SRC_DIR)/*.optimized)
 
 install: $(EXE)
 	@mkdir -p $(DESTDIR)$(PREFIX)/bin
@@ -96,3 +96,9 @@ graph: $(EXE).graph.svg
 
 %.graph.svg: $(DOT)
 	dot -Tsvg $< -o $@
+
+
+manual: $(EXE).1
+
+$(EXE).1: $(EXE)
+	help2man --output=./debian/$@ ./$(EXE)

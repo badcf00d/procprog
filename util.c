@@ -157,13 +157,20 @@ const char** getArgs(int argc, char** argv, FILE** outputFile, bool* verbose)
 
 noreturn void showUsage(int status)
 {
-    printf("Usage: %s [OPTIONS] COMMAND [ARG]...\n", PROGRAM_NAME);
-    puts("Run COMMAND, showing just the most recently output line\n");
+    puts("Run COMMAND with a less verbose output and system usage data\n");
 
-    puts("-h, --help            display this help and exit");
-    puts("-V, --version         output version information and exit");
-    puts("-a, --append          with -o FILE, append instead of overwriting");
-    puts("-o, --output=FILE     write to FILE instead of stderr");
+    printf("Usage: %s [OPTION]... COMMAND [ARG]...\n\n", PROGRAM_NAME);
+    puts("\t-h, --help            display this help and exit");
+    puts("\t-v, --verbose         display all output from the child process");
+    puts("\t-V, --version         output version information and exit");
+    puts("\t-a, --append          with -o FILE, append instead of overwriting");
+    puts("\t-o, --output=FILE     write to FILE instead of stderr\n");
+
+    puts("Examples:");
+    puts("\tprocproc make                   build a project, showing progress and system usage");
+    puts("\tprocprog hdparm -tT /dev/sda    run a disk benchmark to test the disk usage display\n");
+
+    puts("Report bugs to <mail@pfrost.me>.");
 
     exit(status);
 }
@@ -172,8 +179,12 @@ noreturn void showUsage(int status)
 
 noreturn void showVersion(int status)
 {
-    printf("%s %s (Built %s)\nWritten by %s, Copyright %s\n", PROGRAM_NAME, VERSION, __DATE__,
-           AUTHORS, BUILD_YEAR);
+    printf("%s %s\n\n", PROGRAM_NAME, VERSION);
+    printf("Copyright (C) %s Peter Frost\n", BUILD_YEAR);
+    printf("All rights reserved.\n");
+    printf("License BSD 2-Clause \"Simplified\" License: "
+           "<https://spdx.org/licenses/BSD-2-Clause.html>\n\n");
+    printf("Written by %s", AUTHORS);
 
     exit(status);
 }
