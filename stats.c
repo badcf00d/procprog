@@ -14,7 +14,6 @@
 #include "stats.h"
 
 extern struct timespec procStartTime;
-extern FILE* debugFile;
 extern unsigned numCharacters;
 extern volatile struct winsize termSize;
 extern bool alternateBuffer;
@@ -178,7 +177,6 @@ static bool getNetdevUsage(float* download, float* upload)
             sscanf(devLine + 7, "%llu %*u %*u %*u %*u %*u %*u %*u %llu", &bytesDown, &bytesUp);
             newReading.bytesDown += bytesDown;
             newReading.bytesUp += bytesUp;
-            //fprintf(debugFile, "Read line, bytesDown %llu, bytesUp %llu\n", bytesDown, bytesUp);
         }
     }
     fclose(fp);
@@ -237,12 +235,10 @@ static bool getDiskUsage(float* activity)
 
     while (fgets(devLine, sizeof(devLine), fp))
     {
-        //fprintf(debugFile, "Read line, %s", devLine + 13);
         if ((strncmp(devLine + 13, "sd", 2) == 0) || (strncmp(devLine + 13, "hd", 2) == 0))
         {
             sscanf(devLine + 13, "%*s %*u %*u %*u %*u %*u %*u %*u %*u %*u %lu", &tBusy);
             newReading.tBusy += tBusy;
-            //fprintf(debugFile, "Read line, tBusy %lu\n", tBusy);
         }
     }
     fclose(fp);

@@ -7,17 +7,13 @@
 #include "util.h"         // for proc_runtime, printChar, processChar
 
 
-
-extern FILE* debugFile;
 extern unsigned numCharacters;
 extern volatile struct winsize termSize;
 extern bool alternateBuffer;
 
 static char csiCommandBuf[16] = {0};
 static char* pBuf = csiCommandBuf;
-static unsigned char currentTextFormat[8] = {
-    0};    // This should be more than enough simultaneous styles
-
+static unsigned char currentTextFormat[8] = {0};    // This should be plenty of simultaneous styles
 
 
 
@@ -27,26 +23,17 @@ void setTextFormat(void)
     {
         if (currentTextFormat[i] != 0)
         {
-            fprintf(debugFile, "csi: %.03f: set text format: %um\n", proc_runtime(),
-                    currentTextFormat[i]);
             printf("\e[%um", currentTextFormat[i]);
         }
     }
 }
 
-void unsetTextFormat(void)
-{
-    fprintf(debugFile, "csi: %.03f: unset text format\n", proc_runtime());
-    fputs("\e[0m", stdout);
-}
+void unsetTextFormat(void) { fputs("\e[0m", stdout); }
 
 
 void returnToStartLine(bool clearText)
 {
     unsigned numLines = (numCharacters + termSize.ws_col - 1) / termSize.ws_col;
-
-    //fprintf(debugFile, "height: %d, width: %d, numChar: %d, numLines = %d\n",
-    //            termSize.ws_row, termSize.ws_col, numCharacters, numLines);
 
     if (clearText)
     {
@@ -81,9 +68,6 @@ void tidyStats(void)
 
 void clearScreen(void)
 {
-    //fprintf(debugFile, "%.03f: height: %d, width: %d, numChar: %u\n", proc_runtime(),
-    //        termSize.ws_row, termSize.ws_col, numCharacters);
-
     if (alternateBuffer)
     {
         // Erase screen + saved lines
@@ -100,11 +84,7 @@ void clearScreen(void)
 }
 
 
-static void resetTextFormat(void)
-{
-    fprintf(debugFile, "csi: %.03f: reset text format\n", proc_runtime());
-    memset(currentTextFormat, 0, sizeof(currentTextFormat));
-}
+static void resetTextFormat(void) { memset(currentTextFormat, 0, sizeof(currentTextFormat)); }
 
 
 static void addTextFormat(char* csi_command)
@@ -123,17 +103,11 @@ static void addTextFormat(char* csi_command)
             {
                 if (currentTextFormat[i] == 0)
                 {
-                    fprintf(debugFile, "csi: %.03f: added text format %u\n", proc_runtime(),
-                            format);
                     currentTextFormat[i] = format;
                     break;
                 }
             }
         }
-    }
-    else
-    {
-        fprintf(debugFile, "csi: %.03f: invalid text format %s\n", proc_runtime(), csi_command);
     }
 }
 
@@ -155,13 +129,11 @@ static bool checkCsiCommand(const unsigned char inputChar, bool* escaped)
         // No valid command should ever be this long, just drop it
         clearCsiBuffer();
         *escaped = false;
-        //fprintf(debugFile, "csi: %.03f: too long %c (%u)\n", proc_runtime(), inputChar, inputChar);
     }
     else if ((commandLen == 1) && (inputChar != '['))
     {
         clearCsiBuffer();
         *escaped = false;
-        //fprintf(debugFile, "csi: %.03f: not a csi command %c (%u)\n", proc_runtime(), inputChar, inputChar);
     }
     else
     {
@@ -177,14 +149,12 @@ static bool checkCsiCommand(const unsigned char inputChar, bool* escaped)
             case 'K':    // Erase in line
             case 'n':    // Device Status Report
                 validCommand = true;
-                //fprintf(debugFile, "csi: %.03f: allowed %c (%u)\n", proc_runtime(), inputChar, inputChar);
                 break;
             case 'm':    // Text formatting
                 validCommand = true;
                 addTextFormat(csiCommandBuf);
                 break;
             default:
-                //fprintf(debugFile, "csi: %.03f: blocked %c (%u)\n", proc_runtime(), inputChar, inputChar);
                 clearCsiBuffer();
                 break;
             }
@@ -228,7 +198,6 @@ void processChar(unsigned char character, bool verbose, unsigned char* inputBuff
     {
         escaped = true;
         clearCsiBuffer();
-        fprintf(debugFile, "csi: %.03f: escaped\n", proc_runtime());
     }
 
     if (escaped)

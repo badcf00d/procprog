@@ -25,7 +25,6 @@
 #define DEBUG_FILE "debug.log"
 
 struct timespec procStartTime;
-FILE* debugFile;
 unsigned numCharacters = 0;
 volatile struct winsize termSize;
 bool alternateBuffer = false;
@@ -35,7 +34,9 @@ static sem_t redrawMutex;
 static const char* childProcessName;
 static unsigned char* inputBuffer;
 static FILE* outputFile;
+static FILE* debugFile;
 static bool verbose;
+static bool debug;
 struct termios termRestore;
 
 
@@ -82,7 +83,7 @@ static void* readLoop(void* arg)
 
     while (read(procPipe, &inputChar, 1) > 0)
     {
-        if (outputFile != NULL)
+        if (outputFile)
             fwrite(&inputChar, sizeof(inputChar), 1, outputFile);
 
         sem_wait(&outputMutex);
@@ -135,8 +136,8 @@ static void* readLoop(void* arg)
             }
         }
 
-        fprintf(debugFile, "%.03f: %c (%u) (%d)\n", proc_runtime(), inputChar, inputChar,
-                isprint(inputChar));
+        if (debug)
+            fprintf(debugFile, "%.03f: %c (%u)\n", proc_runtime(), inputChar, inputChar);
 
         fflush(stdout);
         sem_post(&outputMutex);
@@ -153,7 +154,7 @@ static void* inputLoop(void* arg)
 
     while (read(STDIN_FILENO, &inputChar, 1) > 0)
     {
-        if (outputFile != NULL)
+        if (outputFile)
             fwrite(&inputChar, sizeof(inputChar), 1, outputFile);
 
         sem_wait(&outputMutex);
@@ -165,8 +166,8 @@ static void* inputLoop(void* arg)
         }
         write(childStdIn, &inputChar, 1);
 
-        fprintf(debugFile, "in: %.03f: %c (%u) (%d)\n", proc_runtime(), inputChar, inputChar,
-                isprint(inputChar));
+        if (debug)
+            fprintf(debugFile, "stdin: %.03f: %c (%u)\n", proc_runtime(), inputChar, inputChar);
 
         sem_post(&outputMutex);
     }
@@ -225,16 +226,15 @@ static void sigwinchHandler(int sigNum)
     (void)(sigNum);
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &termSize);
     sem_post(&redrawMutex);
-    //fprintf(debugFile, "SIGWINCH raised, window size: %d rows / %d columns\n", termSize.ws_row, termSize.ws_col);
 }
 
 
 static noreturn void sigintHandler(int sigNum)
 {
     (void)sigNum;
-    fclose(debugFile);
-
-    if (outputFile != NULL)
+    if (debug)
+        fclose(debugFile);
+    if (outputFile)
         fclose(outputFile);
 
     tidyStats();
@@ -344,6 +344,30 @@ static void readOutput(int outputPipe[2], int inputPipe[2])
 
 
 
+static void initDebugFile(const char* program_name)
+{
+    time_t rawtime;
+    char time_string[32];    // Should be ~18 characters
+    char* debug_filename;
+
+    time(&rawtime);
+    strftime(time_string, 32, "%d.%m.%Y-%H.%M.%S", localtime(&rawtime));
+    asprintf(&debug_filename, "%s_%s.log", program_name, time_string);
+
+    if (debug_filename)
+    {
+        debugFile = fopen(debug_filename, "w");
+        free(debug_filename);
+    }
+
+    if (!debugFile)
+    {
+        showError(EXIT_FAILURE, false, "debug file creation failed\n");
+    }
+}
+
+
+
 int main(int argc, char** argv)
 {
     const char** commandLine;
@@ -361,13 +385,12 @@ int main(int argc, char** argv)
     if (sem_init(&redrawMutex, false, 0) != 0)
         showError(EXIT_FAILURE, false, "sem_init failed\n");
 
-    debugFile = fopen(DEBUG_FILE, "w");
-    //setvbuf(debugFile, NULL, _IONBF, 0);
-    fprintf(debugFile, "Starting...\n");
-
     setProgramName(argv[0]);
-    commandLine = getArgs(argc, argv, &outputFile, &verbose);
+    commandLine = getArgs(argc, argv, &outputFile, &verbose, &debug);
     childProcessName = commandLine[0];
+
+    if (debug)
+        initDebugFile(childProcessName);
 
     ioctl(0, TIOCGWINSZ, &termSize);
     clock_gettime(CLOCK_MONOTONIC, &procStartTime);
@@ -386,9 +409,11 @@ int main(int argc, char** argv)
 
     sem_destroy(&outputMutex);
     sem_destroy(&redrawMutex);
-    fclose(debugFile);
 
-    if (outputFile != NULL)
+    if (debug)
+        fclose(debugFile);
+
+    if (outputFile)
         fclose(outputFile);
 
     return 0;
