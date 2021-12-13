@@ -101,4 +101,4 @@ graph: $(EXE).graph.svg
 manual: $(EXE).1
 
 $(EXE).1: $(EXE)
-	help2man --output=./debian/$@ ./$(EXE)
+	help2man --output=$@ ./$(EXE)
