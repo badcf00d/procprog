@@ -2,7 +2,7 @@ Source: procprog
 Section: utils
 Priority: optional
 Maintainer: Peter Frost <mail@pfrost.me>
-Build-Depends: debhelper-compat (= 12)
+Build-Depends: debhelper-compat (= 12), help2man
 Standards-Version: 4.4.1
 Homepage: https://github.com/badcf00d/procprog
 Vcs-Git: https://github.com/badcf00d/procprog.git
