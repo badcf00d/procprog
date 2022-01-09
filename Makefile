@@ -1,5 +1,10 @@
 CURRENT_PATH := $(subst $(lastword $(notdir $(MAKEFILE_LIST))),,$(subst $(space),\$(space),$(shell realpath '$(strip $(MAKEFILE_LIST))')))
-CC := clang
+CC_S := $(shell which clang)
+ifeq ($(CC_S),)
+	CC := gcc
+else
+	CC := clang
+endif
 EXE := procprog
 SRC_DIR := ./
 OBJ_DIR := ./obj
