@@ -101,4 +101,4 @@ graph: $(EXE).graph.svg
 manual: $(EXE).1
 
 $(EXE).1: $(EXE)
-	help2man --output=$@ ./$(EXE)
+	help2man --name="Runs programs with a quieter output, and shows system usage data" --output=$@ ./$(EXE)
