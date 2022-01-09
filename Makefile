@@ -106,4 +106,14 @@ graph: $(EXE).graph.svg
 manual: $(EXE).1
 
 $(EXE).1: $(EXE)
-	help2man --name="Runs programs with a quieter output, and shows system usage data" --output=$@ ./$(EXE)
+	$(info help2man: $@)
+	@help2man --name="Runs programs with a quieter output, and shows system usage data" --output=$@ ./$(EXE)
+
+release:
+	@echo "Running uscan"
+	@uscan --verbose --force-download
+	@echo "Running test build"
+	@debuild -uc -us -b
+	@echo "Running signed build"
+	@debuild -S -sa
+	@echo "Check the build and upload with dput ppa:frosticles/procprog ../build-area/<source.changes>"
