@@ -112,8 +112,6 @@ $(EXE).1: $(EXE)
 release:
 	@echo "Running uscan"
 	@uscan --verbose --force-download
-	@echo "Running test build"
-	@debuild -uc -us -b
 	@echo "Running signed build"
 	@debuild -S -sa
 	@echo "Check the build and upload with dput ppa:frosticles/procprog ../build-area/<source.changes>"
