@@ -1,3 +1,10 @@
+procprog (0.1.1-0ubuntu1) focal; urgency=medium
+
+  * Fix bug preventing stats from appearing in verbose mode
+  * Missing newline in help
+
+ -- Peter Frost <mail@pfrost.me>  Tue, 16 Aug 2022 23:06:34 +0100
+
 procprog (0.1-0ubuntu1) focal; urgency=medium
 
   * Initial beta release

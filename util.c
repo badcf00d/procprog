@@ -174,7 +174,7 @@ noreturn void showUsage(int status)
     puts("\tprocproc make         build a project, showing progress and system usage");
     puts("\tprocprog -v 7z b      run a benchmark to test the usage display and show all output\n");
 
-    puts("Report bugs to <mail@pfrost.me>.");
+    printf("Report bugs to <%s>\n", CONTACTS);
 
     exit(status);
 }
@@ -184,11 +184,11 @@ noreturn void showUsage(int status)
 noreturn void showVersion(int status)
 {
     printf("%s %s\n\n", PROGRAM_NAME, VERSION);
-    printf("Copyright (C) %s Peter Frost\n", BUILD_YEAR);
+    printf("Copyright (C) %s %s\n", BUILD_YEAR, AUTHORS);
     printf("All rights reserved.\n");
     printf("License BSD 2-Clause \"Simplified\" License: "
            "<https://spdx.org/licenses/BSD-2-Clause.html>\n\n");
-    printf("Written by %s", AUTHORS);
+    printf("Written by %s\n", AUTHORS);
 
     exit(status);
 }

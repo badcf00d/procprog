@@ -360,9 +360,9 @@ void printStats(bool newLine, bool redraw)
     if (newLine)
     {
         if (numLines >= (termSize.ws_row - 2))
-            fputs("\n\e[K\e[1S\e[A", stdout);
+            fputs("\n\e[1S\e[A", stdout);
         else
-            fputs("\n\e[K\n\e[A", stdout);
+            fputs("\n\n\e[A", stdout);
     }
 
     fputs("\e[s", stdout);
