@@ -1,6 +1,10 @@
 # procprog
 A program for monitoring output in a less verbose way
 
+---
+
+![Demo](.github/make_quiet.gif)
+
 ### To use include-what-you-used:
 - Install iwyu (and clang if you don't already have it) `sudo apt install iwyu clang`
 - Make sure iwyu can see the clang library include files for the version of clang you have installed:
