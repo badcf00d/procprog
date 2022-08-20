@@ -15,6 +15,10 @@ A program for monitoring program output and system usage in a single terminal
 
 No external dependencies are required to compile the executable, although `help2man` will be required if you want to build the manual.
 
+- `make` will compile the executable to the current directory
+- `make install` will (compile and) install the executable to `/usr/bin`
+- `make manual` will (compile and) generate a manpage from the output of `./procprog --help`
+
 ### To use include-what-you-used:
 - Install iwyu (and clang if you don't already have it) `sudo apt install iwyu clang`
 - Make sure iwyu can see the clang library include files for the version of clang you have installed:
