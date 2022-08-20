@@ -1,9 +1,19 @@
 # procprog
-A program for monitoring output in a less verbose way
+A program for monitoring program output and system usage in a single terminal
 
 ---
 
-![Demo](.github/make_quiet.gif)
+### Demos
+#### Compiling ffmpeg with the default, installer-style output:
+![Make Quiet](.github/make_quiet.gif)
+#### Compiling ffmpeg with the verbose (-v) output, showing all output on-screen:
+![Make Verbose](.github/make_verbose.gif)
+#### Installing the linux source package with apt-get:
+![APT Install](.github/apt_install.gif)
+
+### Compiling
+
+No external dependencies are required to compile the executable, although `help2man` will be required if you want to build the manual.
 
 ### To use include-what-you-used:
 - Install iwyu (and clang if you don't already have it) `sudo apt install iwyu clang`
