@@ -11,6 +11,14 @@ A program for monitoring program output and system usage in a single terminal
 #### Installing the linux source package with apt-get:
 ![APT Install](.github/apt_install.gif)
 
+### Installing from PPA
+Available in a Launchpad PPA: https://launchpad.net/~frosticles/+archive/ubuntu/procprog, install by doing
+```shell
+sudo add-apt-repository ppa:frosticles/procprog
+sudo apt update  # Not required on ubuntu 18.04 and newer, add-apt-repository should update automatically
+sudo apt install procprog
+```
+
 ### Compiling
 
 No external dependencies are required to compile the executable, although `help2man` will be required if you want to build the manual.
