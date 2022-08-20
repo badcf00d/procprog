@@ -28,7 +28,7 @@ HEADER := $(subst //,/,$(wildcard $(SRC_DIR)/*.h))
 SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
 OBJ := $(SRC:$(SRC_DIR)%.c=$(OBJ_DIR)/%.o)
 DOT := $(EXE).ltrans0.231t.optimized.dot
-CFLAGS := -Wall -Wextra -std=gnu99 -fpie -D_FORTIFY_SOURCE=2 -g3
+CFLAGS := -Wall -Wextra -std=gnu99 -fpie -gdwarf-4 -D_FORTIFY_SOURCE=2 -g3
 LDFLAGS := $(CFLAGS) -pie
 
 TIDY_CHECKS := clang-analyzer-*,performance-*,portability-*,misc-*,cert-*

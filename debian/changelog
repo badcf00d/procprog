@@ -1,3 +1,9 @@
+procprog (0.1.1-0ubuntu2) focal; urgency=medium
+
+  * Build issue
+
+ -- Peter Frost <mail@pfrost.me>  Sat, 20 Aug 2022 21:33:12 +0100
+
 procprog (0.1.1-0ubuntu1) focal; urgency=medium
 
   * Fix bug preventing stats from appearing in verbose mode
