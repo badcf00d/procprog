@@ -97,6 +97,7 @@ static void* readLoop(void* arg)
             else if (inputChar == '\n')
             {
                 unsetTextFormat();
+                advanceSpinner();
                 printStats(true, true);
                 numCharacters = 0;
                 setTextFormat();

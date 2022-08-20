@@ -10,7 +10,7 @@ Vcs-Git: https://github.com/badcf00d/procprog.git
 Package: procprog
 Architecture: any
 Depends: ${shlibs:Depends}
-Description: Runs programs with a quieter output, and shows system usage data
- A program that runs a child process, showing an
- installer-style output showing just the most recent
- line of output, along with system usage statistics.
+Description: A program for monitoring output and system usage in a single terminal
+ A program that runs a child process, showing
+ the program output showing alongside system
+ usage statistics in the same terminal.
