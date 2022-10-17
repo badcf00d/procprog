@@ -316,10 +316,8 @@ static void readOutput(int outputPipe[2], int inputPipe[2])
         showError(EXIT_FAILURE, false, "pthread_create failed\n");
 
     tick_create(tickCallback, 1U, 0U, false);
-#if __linux__
     // CPU usage needs to be taken over a time interval
     tick_create(tickCallback, 0U, MSEC_TO_NSEC(50U), true);
-#endif
 
     wait(&exitStatus);
     pthread_join(readThread, NULL);    // Wait for everything to complete
@@ -386,7 +384,6 @@ int main(int argc, char** argv)
     if (sem_init(&redrawMutex, false, 0) != 0)
         showError(EXIT_FAILURE, false, "sem_init failed\n");
 
-    setProgramName(argv[0]);
     commandLine = getArgs(argc, argv, &outputFile, &verbose, &debug);
     childProcessName = commandLine[0];
 

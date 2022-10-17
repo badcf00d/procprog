@@ -77,30 +77,6 @@ double proc_runtime(void)
 
 
 
-int setProgramName(char* name)
-{
-    int retVal = 0;
-    char nameBuf[16];
-
-    snprintf(nameBuf, sizeof(nameBuf), "%s", name);
-
-#if __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 12
-    retVal = pthread_setname_np(pthread_self(), nameBuf);
-#elif __linux__
-    if (prctl(PR_SET_NAME, (unsigned long)nameBuf, 0, 0, 0))
-    {
-        retVal = errno;
-    }
-#elif __MAC_10_6
-    retVal = pthread_setname_np(nameBuf);
-#else
-#error "Missing a method to set program name"
-#endif
-
-    return retVal;
-}
-
-
 const char** getArgs(int argc, char** argv, FILE** outputFile, bool* verbose, bool* debug)
 {
     static struct option longOpts[] = {
