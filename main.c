@@ -350,7 +350,7 @@ static void initDebugFile(const char* program_name)
     char* debug_filename;
 
     time(&rawtime);
-    strftime(time_string, 32, "%d.%m.%Y-%H.%M.%S", localtime(&rawtime));
+    strftime(time_string, sizeof(time_string), "%d.%m.%Y-%H.%M.%S", localtime(&rawtime));
     asprintf(&debug_filename, "%s_%s.log", program_name, time_string);
 
     if (debug_filename)

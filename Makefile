@@ -17,7 +17,7 @@ LDFLAGS := $(CFLAGS) -pie
 
 TIDY_CHECKS := clang-analyzer-*,performance-*,portability-*,misc-*,cert-*
 TIDY_IGNORE := -clang-analyzer-valist.Uninitialized,-cert-err34-c
-CPPCHECK_IGNORE := --inline-suppr -U__APPLE__ -i ./time --suppress=variableScope --suppress=missingIncludeSystem --suppress=localtimeCalled
+CPPCHECK_IGNORE := --inline-suppr -i ./time --suppress=variableScope --suppress=missingIncludeSystem --suppress=localtimeCalled
 CPPCHECK_CHECKS := --max-ctu-depth=4 --inconclusive --enable=all --platform=unix64 --std=c99 --library=posix
 IWYU_FLAGS := -Xiwyu --no_fwd_decls
 

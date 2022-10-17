@@ -359,7 +359,7 @@ void printStats(bool newLine, bool redraw)
 
     if (newLine)
     {
-        if (numLines >= (termSize.ws_row - 2))
+        if (numLines >= (termSize.ws_row - 2U))
             fputs("\n\e[1S\e[A", stdout);
         else
             fputs("\n\n\e[A", stdout);

@@ -11,6 +11,8 @@
 #include <stdnoreturn.h>    // for noreturn
 #include <sys/ioctl.h>      // for winsize
 #include <sys/time.h>       // for CLOCK_MONOTONIC
+#include <sys/prctl.h>
+#include <errno.h>
 #include <time.h>           // for timespec, clock_gettime
 #include "graphics.h"       // for ANSI_FG_RED, ANSI_RESET_ALL
 #include "timer.h"          // for timespecsub
