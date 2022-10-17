@@ -1,26 +1,9 @@
 CURRENT_PATH := $(subst $(lastword $(notdir $(MAKEFILE_LIST))),,$(subst $(space),\$(space),$(shell realpath '$(strip $(MAKEFILE_LIST))')))
-CC_S := $(shell which clang)
-ifeq ($(CC_S),)
-	CC := gcc
-else
-	CC := clang
-endif
 EXE := procprog
 SRC_DIR := ./
 OBJ_DIR := ./obj
 $(shell mkdir -p $(CURRENT_PATH)$(SRC_DIR) $(CURRENT_PATH)$(OBJ_DIR))
 
-ifeq ($(OS),Windows_NT)
-	LIBS := -lrt -lpthread
-else
-	UNAME_S := $(shell uname -s)
-	ifeq ($(UNAME_S),Linux)
-		LIBS := -lrt -lpthread
-	endif
-	ifeq ($(UNAME_S),Darwin)
-		LIBS := -lrt -lpthread
-	endif
-endif
 ifeq ($(PREFIX),)
     PREFIX := /usr
 endif
@@ -28,6 +11,7 @@ HEADER := $(subst //,/,$(wildcard $(SRC_DIR)/*.h))
 SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
 OBJ := $(SRC:$(SRC_DIR)%.c=$(OBJ_DIR)/%.o)
 DOT := $(EXE).ltrans0.231t.optimized.dot
+LIBS := -lrt -lpthread
 CFLAGS := -Wall -Wextra -std=gnu99 -fpie -gdwarf-4 -D_FORTIFY_SOURCE=2 -g3
 LDFLAGS := $(CFLAGS) -pie
 
