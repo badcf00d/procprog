@@ -5,7 +5,6 @@
 
 #define AUTHORS "Peter Frost"
 #define PROGRAM_NAME "procprog"
-#define VERSION "0.1.1"
 #define BUILD_YEAR (&(__DATE__)[7])
 #define CONTACTS "mail@pfrost.me"
 

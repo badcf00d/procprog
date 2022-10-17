@@ -15,6 +15,10 @@ LIBS := -lrt -lpthread
 CFLAGS := -Wall -Wextra -std=gnu99 -fpie -gdwarf-4 -D_FORTIFY_SOURCE=2 -g3
 LDFLAGS := $(CFLAGS) -pie
 
+include /usr/share/dpkg/pkg-info.mk
+ifeq ($(DEB_VERSION),)
+    DEB_VERSION := Unknown
+endif
 TIDY_CHECKS := clang-analyzer-*,performance-*,portability-*,misc-*,cert-*
 TIDY_IGNORE := -clang-analyzer-valist.Uninitialized,-cert-err34-c
 CPPCHECK_IGNORE := --inline-suppr -i ./time --suppress=variableScope --suppress=missingIncludeSystem --suppress=localtimeCalled
@@ -34,7 +38,7 @@ $(EXE): $(OBJ)
 	$(info Executable compiled to $(shell realpath --relative-to=$(shell pwd) $@))
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -DVERSION=\"$(DEB_VERSION)\" -c $< -o $@
 	$(info $(CC): $(CFLAGS) $(notdir $<))
 
 
