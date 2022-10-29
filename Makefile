@@ -19,6 +19,10 @@ DOT := $(EXE).ltrans0.231t.optimized.dot
 LIBS := -lrt -lpthread
 CFLAGS := -Wall -Wextra -std=gnu99 -fpie -O2 -flto -gdwarf-4 -D_FORTIFY_SOURCE=2 -DVERSION=\"$(DEB_VERSION)\" -g3
 
+GCC_10 := $(shell expr `cc -dumpversion | cut -f1 -d.` \>= 10)
+ifeq ($(GCC_10),1)
+	CFLAGS += -fanalyzer
+endif
 
 TIDY_CHECKS := clang-analyzer-*,performance-*,portability-*,misc-*,cert-*
 TIDY_IGNORE := -clang-analyzer-valist.Uninitialized,-cert-err34-c,-cert-err33-c
@@ -43,7 +47,7 @@ $(EXE): $(OBJ)
 	$(info Executable compiled to $(shell realpath --relative-to=$(shell pwd) $@))
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -fanalyzer -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 	$(info $(CC): $(CFLAGS) $(notdir $<))
 
 
