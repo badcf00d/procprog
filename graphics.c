@@ -1,11 +1,9 @@
 #include <ctype.h>        // for isalpha
 #include <stdbool.h>      // for bool, true, false
-#include <stdio.h>        // for fputs, printf, stdout, fprintf, putchar, sscanf
+#include <stdio.h>        // for fputs, stdout, printf, putchar, sscanf
 #include <string.h>       // for memset
 #include <sys/ioctl.h>    // for winsize
 #include "stats.h"        // for printStats
-#include "util.h"         // for proc_runtime, printChar, processChar
-
 
 extern unsigned numCharacters;
 extern volatile struct winsize termSize;

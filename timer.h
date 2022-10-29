@@ -1,4 +1,8 @@
-#include <bits/types/__sigval_t.h>    // for __sigval_t
+#pragma once
+
+#include <signal.h>     // for __sigval_t
+#include <stdbool.h>    // for bool
+
 void tick_create(void (*callback)(__sigval_t sigval), unsigned int sec, unsigned int nsec,
                  bool once);
 

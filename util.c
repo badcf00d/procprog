@@ -1,22 +1,15 @@
-#define _GNU_SOURCE
-
-#include <unistd.h>         // for optind, optarg
-#include <features.h>       // for __GLIBC_MINOR__, __GLIBC__
-#include <getopt.h>         // for no_argument, getopt_long, option, requ...
-#include <pthread.h>        // for pthread_self, pthread_setname_np
-#include <stdarg.h>         // for va_end, va_list, va_start
-#include <stdbool.h>        // for bool, false, true
-#include <stdio.h>          // for puts, NULL, printf, fopen, fputs, snpr...
-#include <stdlib.h>         // for exit, EXIT_FAILURE, EXIT_SUCCESS
-#include <stdnoreturn.h>    // for noreturn
-#include <sys/ioctl.h>      // for winsize
-#include <sys/time.h>       // for CLOCK_MONOTONIC
-#include <sys/prctl.h>
-#include <errno.h>
-#include <time.h>           // for timespec, clock_gettime
-#include "graphics.h"       // for ANSI_FG_RED, ANSI_RESET_ALL
-#include "timer.h"          // for timespecsub
 #include "util.h"
+#include <bits/getopt_core.h>    // for optind, optarg
+#include <getopt.h>              // for no_argument, getopt_long, option, requ...
+#include <stdarg.h>              // for va_end, va_start
+#include <stdbool.h>             // for bool, false, true
+#include <stdio.h>               // for puts, NULL, printf, fopen, fputs, vprintf
+#include <stdlib.h>              // for exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <stdnoreturn.h>         // for noreturn
+#include <sys/ioctl.h>           // for winsize
+#include <time.h>                // for timespec, clock_gettime, CLOCK_MONOTONIC
+#include "graphics.h"            // for printChar, ANSI_FG_RED, ANSI_RESET_ALL
+#include "timer.h"               // for timespecsub
 
 extern struct timespec procStartTime;
 extern unsigned numCharacters;

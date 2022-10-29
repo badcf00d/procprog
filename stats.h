@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdbool.h>    // for bool
 #include <time.h>       // for timespec
 

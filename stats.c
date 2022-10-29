@@ -1,17 +1,14 @@
-#define _POSIX_C_SOURCE 200809L
-
+#include "stats.h"
 #include <printf.h>       // for parse_printf_format
 #include <stdarg.h>       // for va_end, va_list, va_start, va_arg
 #include <stdbool.h>      // for false, bool, true
-#include <stdio.h>        // for fputs, sscanf, fclose, fgets, fopen, sprintf
-#include <string.h>       // for memcpy, strncmp, memset, strcat
+#include <stdio.h>        // for fputs, sscanf, fclose, fgets, fopen, stdout
+#include <string.h>       // for memcpy, strncmp, memset, strncat
 #include <sys/ioctl.h>    // for winsize
-#include <sys/time.h>     // for CLOCK_MONOTONIC
-#include <time.h>         // for timespec, NULL, clock_gettime, size_t
+#include <time.h>         // for timespec, NULL, clock_gettime, CLOCK_MONOTONIC
 #include "graphics.h"     // for ANSI_RESET_ALL, gotoStatLine, ANSI_FG_CYAN
 #include "timer.h"        // for timespecsub, SECS_IN_DAY, SEC_TO_MSEC
 #include "util.h"         // for printable_strlen
-#include "stats.h"
 
 extern struct timespec procStartTime;
 extern unsigned numCharacters;

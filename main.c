@@ -1,26 +1,23 @@
-#define _GNU_SOURCE
-
-#include <bits/types/__sigval_t.h>    // for __sigval_t
-#include <ctype.h>                    // for isprint
-#include <errno.h>                    // for EINTR, errno
-#include <pthread.h>                  // for pthread_create, pthread_join, pth...
-#include <semaphore.h>                // for sem_post, sem_wait, sem_destroy
-#include <signal.h>                   // for sigaction, sigemptyset, sa_handler
-#include <stdbool.h>                  // for false, true, bool
-#include <stdio.h>                    // for fflush, NULL, printf, fclose, fputs
-#include <stdlib.h>                   // for EXIT_FAILURE, calloc, exit, WEXIT...
-#include <stdnoreturn.h>              // for noreturn
-#include <string.h>                   // for memset, strsignal
-#include <sys/ioctl.h>                // for winsize, ioctl, TIOCGWINSZ
-#include <sys/time.h>                 // for CLOCK_MONOTONIC, CLOCK_REALTIME
-#include <sys/wait.h>                 // for wait
-#include <termios.h>                  // for tcsetattr, tcgetattr
-#include <time.h>                     // for clock_gettime, timespec
-#include <unistd.h>                   // for close, STDIN_FILENO, dup2, read
-#include "graphics.h"                 // for setScrollArea, gotoStatLine, clea...
-#include "stats.h"                    // for printStats, advanceSpinner
-#include "timer.h"                    // for tick_create, MSEC_TO_NSEC
-#include "util.h"                     // for showError, proc_runtime, printChar
+#include <ctype.h>          // for isprint
+#include <errno.h>          // for EINTR, errno
+#include <pthread.h>        // for pthread_create, pthread_join, pth...
+#include <semaphore.h>      // for sem_post, sem_wait, sem_destroy
+#include <signal.h>         // for sigaction, sigemptyset, sa_handler
+#include <stdbool.h>        // for false, true, bool
+#include <stdio.h>          // for fflush, NULL, printf, fclose, fputs
+#include <stdlib.h>         // for EXIT_FAILURE, calloc, exit, WEXIT...
+#include <stdnoreturn.h>    // for noreturn
+#include <string.h>         // for memset, strsignal
+#include <sys/ioctl.h>      // for winsize, ioctl, TIOCGWINSZ
+#include <sys/time.h>       // for CLOCK_MONOTONIC, CLOCK_REALTIME
+#include <sys/wait.h>       // for wait
+#include <termios.h>        // for tcsetattr, tcgetattr
+#include <time.h>           // for clock_gettime, timespec
+#include <unistd.h>         // for close, STDIN_FILENO, dup2, read
+#include "graphics.h"       // for setScrollArea, gotoStatLine, clea...
+#include "stats.h"          // for printStats, advanceSpinner
+#include "timer.h"          // for tick_create, MSEC_TO_NSEC
+#include "util.h"           // for showError, proc_runtime, printChar
 
 #define DEBUG_FILE "debug.log"
 
@@ -165,9 +162,10 @@ static void* inputLoop(void* arg)
             processChar(inputChar, verbose, inputBuffer);
             fflush(stdout);
         }
-        write(childStdIn, &inputChar, 1);
-
-        if (debug)
+        if ((write(childStdIn, &inputChar, 1) < 0) && (debug))
+            fprintf(debugFile, "stdin passthrough failed (fd %d): %.03f: %c (%u)\n", childStdIn,
+                    proc_runtime(), inputChar, inputChar);
+        else if (debug)
             fprintf(debugFile, "stdin: %.03f: %c (%u)\n", proc_runtime(), inputChar, inputChar);
 
         sem_post(&outputMutex);
@@ -203,9 +201,10 @@ static void* redrawThread(void* arg)
         clock_gettime(CLOCK_REALTIME, &currentTime);
         timespecadd(&currentTime, &debounceTime, &timeoutTime);
 
-        while ((retval = sem_timedwait(&redrawMutex, &timeoutTime)) == -1 && (errno == EINTR))
-            continue; /* Restart if interrupted by handler */
+        retval = sem_timedwait(&redrawMutex, &timeoutTime);
 
+        // If we got the sem succesfully, that means the sigwinch interrupt
+        // fired, so go and wait again.
         if (retval == 0)
             goto debounce;
 
@@ -346,23 +345,16 @@ static void readOutput(int outputPipe[2], int inputPipe[2])
 static void initDebugFile(const char* program_name)
 {
     time_t rawtime;
-    char time_string[32];    // Should be ~18 characters
-    char* debug_filename;
+    char time_string[32];        // Should be ~18 characters
+    char debug_filename[128];    // Should be plenty for a filename, excess will be truncated
 
     time(&rawtime);
     strftime(time_string, sizeof(time_string), "%d.%m.%Y-%H.%M.%S", localtime(&rawtime));
-    asprintf(&debug_filename, "%s_%s.log", program_name, time_string);
+    snprintf(debug_filename, sizeof(debug_filename), "%s_%s.log", program_name, time_string);
 
-    if (debug_filename)
-    {
-        debugFile = fopen(debug_filename, "w");
-        free(debug_filename);
-    }
-
+    debugFile = fopen(debug_filename, "w");
     if (!debugFile)
-    {
         showError(EXIT_FAILURE, false, "debug file creation failed\n");
-    }
 }
 
 

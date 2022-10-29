@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdbool.h>        // for bool
 #include <stdio.h>          // for FILE
 #include <stdnoreturn.h>    // for noreturn

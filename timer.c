@@ -1,14 +1,6 @@
-#define _POSIX_C_SOURCE 200809L
-#include <bits/types/__sigval_t.h>           // for sigval
-#include <bits/types/sigevent_t.h>           // for sigev_notify_attributes
-#include <bits/types/struct_itimerspec.h>    // for itimerspec
-#include <bits/types/timer_t.h>              // for timer_t
-#include <signal.h>                          // for SIGEV_THREAD
-#include <stdbool.h>                         // for bool
-#include <sys/time.h>                        // for CLOCK_MONOTONIC
-#include <time.h>                            // for timer_create, timer_settime
-
-
+#include <signal.h>     // for SIGEV_THREAD, sigevent
+#include <stdbool.h>    // for bool
+#include <time.h>       // for timer_create, timer_settime
 
 
 void tick_create(void (*callback)(__sigval_t), unsigned int sec, unsigned int nsec, bool once)
