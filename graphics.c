@@ -26,7 +26,10 @@ void setTextFormat(void)
     }
 }
 
-void unsetTextFormat(void) { fputs("\e[0m", stdout); }
+void unsetTextFormat(void)
+{
+    fputs("\e[0m", stdout);
+}
 
 
 void returnToStartLine(bool clearText)
@@ -82,7 +85,10 @@ void clearScreen(void)
 }
 
 
-static void resetTextFormat(void) { memset(currentTextFormat, 0, sizeof(currentTextFormat)); }
+static void resetTextFormat(void)
+{
+    memset(currentTextFormat, 0, sizeof(currentTextFormat));
+}
 
 
 static void addTextFormat(char* csi_command)

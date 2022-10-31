@@ -8,6 +8,7 @@ PointerAlignment: Left
 ReflowComments: false
 SortIncludes: false
 AllowShortIfStatementsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
 BinPackArguments: true
 BinPackParameters: true
 AlignAfterOpenBracket: Align
