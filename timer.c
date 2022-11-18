@@ -1,9 +1,9 @@
-#include <signal.h>     // for SIGEV_THREAD, sigevent
-#include <stdbool.h>    // for bool
-#include <time.h>       // for timer_create, timer_settime
+#include <signal.h>   // for SIGEV_THREAD, sigevent
+#include <stdbool.h>  // for bool
+#include <time.h>     // for timer_create, timer_settime
 
 
-void tick_create(void (*callback)(__sigval_t), unsigned int sec, unsigned int nsec, bool once)
+void tick_create(void (*callback)(__sigval_t), unsigned sec, unsigned nsec, bool once)
 {
     struct sigevent timerEvent = {
         .sigev_notify = SIGEV_THREAD,
@@ -12,7 +12,8 @@ void tick_create(void (*callback)(__sigval_t), unsigned int sec, unsigned int ns
     };
     struct itimerspec timerPeriod = {
         .it_value.tv_sec = (once) ? sec : 0,
-        .it_value.tv_nsec = (once) ? nsec : 1,    // If !once we want the timer to fire immediately
+        .it_value.tv_nsec = (once) ? nsec
+                                   : 1,  // If !once we want the timer to fire immediately
         .it_interval.tv_sec = (once) ? 0 : sec,
         .it_interval.tv_nsec = (once) ? 0 : nsec,
     };

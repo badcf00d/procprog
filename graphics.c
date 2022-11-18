@@ -1,17 +1,18 @@
-#include <ctype.h>        // for isalpha
-#include <stdbool.h>      // for bool, true, false
-#include <stdio.h>        // for fputs, stdout, printf, putchar, sscanf
-#include <string.h>       // for memset
-#include <sys/ioctl.h>    // for winsize
-#include "stats.h"        // for printStats
+#include "stats.h"      // for printStats
+#include <ctype.h>      // for isalpha
+#include <stdbool.h>    // for bool, true, false
+#include <stdio.h>      // for fputs, stdout, printf, putchar, sscanf
+#include <string.h>     // for memset
+#include <sys/ioctl.h>  // for winsize
 
-extern unsigned numCharacters;
-extern volatile struct winsize termSize;
-extern bool alternateBuffer;
+#include "graphics.h"
+#include "main.h"
+
 
 static char csiCommandBuf[16] = {0};
 static char* pBuf = csiCommandBuf;
-static unsigned char currentTextFormat[8] = {0};    // This should be plenty of simultaneous styles
+static unsigned char currentTextFormat[8] = {
+    0};  // This should be plenty of simultaneous styles
 
 
 
@@ -32,9 +33,10 @@ void unsetTextFormat(void)
 }
 
 
-void returnToStartLine(bool clearText)
+void returnToStartLine(bool clearText, window_t* window)
 {
-    unsigned numLines = (numCharacters + termSize.ws_col - 1) / termSize.ws_col;
+    unsigned numLines = (window->numCharacters + window->termSize.ws_col - 1) /
+                        window->termSize.ws_col;
 
     if (clearText)
     {
@@ -51,36 +53,36 @@ void returnToStartLine(bool clearText)
 }
 
 
-void gotoStatLine(void)
+void gotoStatLine(window_t* window)
 {
     // Clear screen below cursor, move to bottom of screen
-    printf("\e[0J\e[%u;1H", termSize.ws_row + 1U);
+    printf("\e[0J\e[%u;1H", window->termSize.ws_row + 1U);
 }
 
 
-void tidyStats(void)
+void tidyStats(window_t* window)
 {
     unsetTextFormat();
     fputs("\e[s", stdout);
-    gotoStatLine();
+    gotoStatLine(window);
     fputs("\e[u", stdout);
     setTextFormat();
 }
 
-void clearScreen(void)
+void clearScreen(window_t* window)
 {
-    if (alternateBuffer)
+    if (window->alternateBuffer)
     {
         // Erase screen + saved lines
         fputs("\e[2J\e[3J\e[1;1H", stdout);
     }
     else
     {
-        returnToStartLine(false);
+        returnToStartLine(false, window);
         // Clears screen from cursor to end, switches to Alternate Screen Buffer
         // Erases saved lines, sets cursor to top left
         fputs("\e[0J\e[?1049h\e[3J\e[1;1H", stdout);
-        alternateBuffer = true;
+        window->alternateBuffer = true;
     }
 }
 
@@ -93,23 +95,23 @@ static void resetTextFormat(void)
 
 static void addTextFormat(char* csi_command)
 {
-    unsigned int format;
+    unsigned format;
 
-    if (sscanf(csi_command, "\e[%u", &format) > 0)
+    if (sscanf(csi_command, "\e[%u", &format) != 1)
+        return;
+
+    if (format == 0)
     {
-        if (format == 0)
+        resetTextFormat();
+    }
+    else
+    {
+        for (unsigned i = 0; i < sizeof(currentTextFormat); i++)
         {
-            resetTextFormat();
-        }
-        else
-        {
-            for (unsigned i = 0; i < sizeof(currentTextFormat); i++)
+            if (currentTextFormat[i] == 0)
             {
-                if (currentTextFormat[i] == 0)
-                {
-                    currentTextFormat[i] = format;
-                    break;
-                }
+                currentTextFormat[i] = format;
+                break;
             }
         }
     }
@@ -147,14 +149,14 @@ static bool checkCsiCommand(const unsigned char inputChar, bool* escaped)
         {
             switch (inputChar)
             {
-            case 'C':    // Cursor forward
-            case 'D':    // Cursor back
-            case 'G':    // Cursor horizontal position
-            case 'K':    // Erase in line
-            case 'n':    // Device Status Report
+            case 'C':  // Cursor forward
+            case 'D':  // Cursor back
+            case 'G':  // Cursor horizontal position
+            case 'K':  // Erase in line
+            case 'n':  // Device Status Report
                 validCommand = true;
                 break;
-            case 'm':    // Text formatting
+            case 'm':  // Text formatting
                 validCommand = true;
                 addTextFormat(csiCommandBuf);
                 break;
@@ -170,32 +172,35 @@ static bool checkCsiCommand(const unsigned char inputChar, bool* escaped)
 }
 
 
-static void checkStats(void)
+static void checkStats(window_t* window)
 {
-    if (numCharacters > termSize.ws_col)
+    if (window->numCharacters > window->termSize.ws_col)
     {
-        if ((numCharacters % termSize.ws_col) == 0)
-            printStats(true, true);
+        if ((window->numCharacters % window->termSize.ws_col) == 0)
+            printStats(true, true, window);
     }
-    else if (numCharacters == termSize.ws_col)
-        printStats(true, true);
+    else if (window->numCharacters == window->termSize.ws_col)
+        printStats(true, true, window);
 }
 
 
-void printChar(unsigned char character, bool verbose, unsigned char* inputBuffer)
+void printChar(unsigned char character, unsigned char* inputBuffer, options_t* options,
+               window_t* window)
 {
-    if (!verbose)
+    if (!options->verbose)
     {
-        if ((inputBuffer) && (numCharacters < 2048))
-            *(inputBuffer + numCharacters) = character;
+        if ((inputBuffer) && (window->numCharacters < 2048))
+            *(inputBuffer + window->numCharacters) = character;
     }
-    checkStats();
+    checkStats(window);
     putchar(character);
-    numCharacters++;
+
+    window->numCharacters += 1;
 }
 
 
-void processChar(unsigned char character, bool verbose, unsigned char* inputBuffer)
+void processChar(unsigned char character, unsigned char* inputBuffer, options_t* options,
+                 window_t* window)
 {
     static bool escaped;
     if (character == '\e')
@@ -214,6 +219,24 @@ void processChar(unsigned char character, bool verbose, unsigned char* inputBuff
     }
     else
     {
-        printChar(character, verbose, inputBuffer);
+        printChar(character, inputBuffer, options, window);
+    }
+}
+
+
+void tabToSpaces(unsigned char* inputBuffer, options_t* options, window_t* window)
+{
+    printChar(' ', inputBuffer, options, window);
+
+    if (window->numCharacters > window->termSize.ws_col)
+    {
+        while ((window->numCharacters - window->termSize.ws_col) % 8)
+            printChar(' ', inputBuffer, options, window);
+    }
+    else
+    {
+        while ((window->numCharacters % 8) &&
+               (window->numCharacters < window->termSize.ws_col))
+            printChar(' ', inputBuffer, options, window);
     }
 }

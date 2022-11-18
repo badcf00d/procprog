@@ -1,30 +1,30 @@
-#include <ctype.h>          // for isprint
-#include <errno.h>          // for EINTR, errno
-#include <pthread.h>        // for pthread_create, pthread_join, pth...
-#include <semaphore.h>      // for sem_post, sem_wait, sem_destroy
-#include <signal.h>         // for sigaction, sigemptyset, sa_handler
-#include <stdbool.h>        // for false, true, bool
-#include <stdio.h>          // for fflush, NULL, printf, fclose, fputs
-#include <stdlib.h>         // for EXIT_FAILURE, calloc, exit, WEXIT...
-#include <stdnoreturn.h>    // for noreturn
-#include <string.h>         // for memset, strsignal
-#include <sys/ioctl.h>      // for winsize, ioctl, TIOCGWINSZ
-#include <sys/time.h>       // for CLOCK_MONOTONIC, CLOCK_REALTIME
-#include <sys/wait.h>       // for wait
-#include <termios.h>        // for tcsetattr, tcgetattr
-#include <time.h>           // for clock_gettime, timespec
-#include <unistd.h>         // for close, STDIN_FILENO, dup2, read
-#include "graphics.h"       // for setScrollArea, gotoStatLine, clea...
-#include "stats.h"          // for printStats, advanceSpinner
-#include "timer.h"          // for tick_create, MSEC_TO_NSEC
-#include "util.h"           // for showError, proc_runtime, printChar
+#include "graphics.h"     // for setScrollArea, gotoStatLine, clea...
+#include "stats.h"        // for printStats, advanceSpinner
+#include "timer.h"        // for tick_create, MSEC_TO_NSEC
+#include "util.h"         // for showError, proc_runtime, printChar
+#include <ctype.h>        // for isprint
+#include <errno.h>        // for EINTR, errno
+#include <pthread.h>      // for pthread_create, pthread_join, pth...
+#include <semaphore.h>    // for sem_post, sem_wait, sem_destroy
+#include <signal.h>       // for sigaction, sigemptyset, sa_handler
+#include <stdbool.h>      // for false, true, bool
+#include <stdio.h>        // for fflush, NULL, printf, fclose, fputs
+#include <stdlib.h>       // for EXIT_FAILURE, calloc, exit, WEXIT...
+#include <stdnoreturn.h>  // for noreturn
+#include <string.h>       // for memset, strsignal
+#include <sys/ioctl.h>    // for winsize, ioctl, TIOCGWINSZ
+#include <sys/time.h>     // for CLOCK_MONOTONIC, CLOCK_REALTIME
+#include <sys/wait.h>     // for wait
+#include <termios.h>      // for tcsetattr, tcgetattr
+#include <time.h>         // for clock_gettime, timespec
+#include <unistd.h>       // for close, STDIN_FILENO, dup2, read
+
+#include "main.h"
 
 #define DEBUG_FILE "debug.log"
 
-struct timespec procStartTime;
-unsigned numCharacters = 0;
-volatile struct winsize termSize;
-bool alternateBuffer = false;
+static window_t procWindow;
+static options_t invocOptions;
 
 static sem_t outputMutex;
 static sem_t redrawMutex;
@@ -32,18 +32,14 @@ static const char* childProcessName;
 static unsigned char* inputBuffer;
 static FILE* outputFile;
 static FILE* debugFile;
-static bool verbose;
-static bool debug;
-struct termios termRestore;
-
-
+static struct termios termRestore;
 
 static void tickCallback(__sigval_t sv)
 {
     (void)sv;
     sem_wait(&outputMutex);
     unsetTextFormat();
-    printStats(false, false);
+    printStats(false, false, &procWindow);
     setTextFormat();
     sem_post(&outputMutex);
 }
@@ -53,7 +49,7 @@ static void initConsole(void)
 {
     struct termios term;
 
-    if (!verbose)
+    if (!invocOptions.verbose)
     {
         inputBuffer = (unsigned char*)calloc(sizeof(unsigned char), 2048);
         if (!inputBuffer)
@@ -67,7 +63,7 @@ static void initConsole(void)
     term.c_lflag &= ~(ICANON | ECHO);
     tcsetattr(STDIN_FILENO, TCSANOW, &term);
 
-    fputs("\n\e[1A", stdout);    // Set the cursor to our starting position
+    fputs("\n\e[1A", stdout);  // Set the cursor to our starting position
     sem_post(&outputMutex);
 }
 
@@ -85,23 +81,23 @@ static void* readLoop(void* arg)
 
         sem_wait(&outputMutex);
 
-        if (verbose)
+        if (invocOptions.verbose)
         {
             if (inputChar == '\t')
             {
-                tabToSpaces(verbose, inputBuffer);
+                tabToSpaces(inputBuffer, &invocOptions, &procWindow);
             }
             else if (inputChar == '\n')
             {
                 unsetTextFormat();
                 advanceSpinner();
-                printStats(true, true);
-                numCharacters = 0;
+                printStats(true, true, &procWindow);
+                procWindow.numCharacters = 0;
                 setTextFormat();
             }
             else if (isprint(inputChar) || (inputChar == '\e') || (inputChar == '\b'))
             {
-                processChar(inputChar, verbose, inputBuffer);
+                processChar(inputChar, inputBuffer, &invocOptions, &procWindow);
             }
         }
         else
@@ -120,22 +116,23 @@ static void* readLoop(void* arg)
                 {
                     memset(inputBuffer, 0, 2048);
                     unsetTextFormat();
-                    printStats(false, true);
-                    returnToStartLine(true);
+                    printStats(false, true, &procWindow);
+                    returnToStartLine(true, &procWindow);
                     setTextFormat();
-                    numCharacters = 0;
+                    procWindow.numCharacters = 0;
                     newLine = false;
                 }
 
                 if (inputChar == '\t')
-                    tabToSpaces(verbose, inputBuffer);
+                    tabToSpaces(inputBuffer, &invocOptions, &procWindow);
                 else if (isprint(inputChar) || (inputChar == '\e') || (inputChar == '\b'))
-                    processChar(inputChar, verbose, inputBuffer);
+                    processChar(inputChar, inputBuffer, &invocOptions, &procWindow);
             }
         }
 
-        if (debug)
-            fprintf(debugFile, "%.03f: %c (%u)\n", proc_runtime(), inputChar, inputChar);
+        if (invocOptions.debug)
+            fprintf(debugFile, "%.03f: %c (%u)\n", proc_runtime(&procWindow), inputChar,
+                    inputChar);
 
         fflush(stdout);
         sem_post(&outputMutex);
@@ -159,14 +156,15 @@ static void* inputLoop(void* arg)
 
         if (isprint(inputChar))
         {
-            processChar(inputChar, verbose, inputBuffer);
+            processChar(inputChar, inputBuffer, &invocOptions, &procWindow);
             fflush(stdout);
         }
-        if ((write(childStdIn, &inputChar, 1) < 0) && (debug))
-            fprintf(debugFile, "stdin passthrough failed (fd %d): %.03f: %c (%u)\n", childStdIn,
-                    proc_runtime(), inputChar, inputChar);
-        else if (debug)
-            fprintf(debugFile, "stdin: %.03f: %c (%u)\n", proc_runtime(), inputChar, inputChar);
+        if ((write(childStdIn, &inputChar, 1) < 0) && (invocOptions.debug))
+            fprintf(debugFile, "stdin passthrough failed (fd %d): %.03f: %c (%u)\n",
+                    childStdIn, proc_runtime(&procWindow), inputChar, inputChar);
+        else if (invocOptions.debug)
+            fprintf(debugFile, "stdin: %.03f: %c (%u)\n", proc_runtime(&procWindow),
+                    inputChar, inputChar);
 
         sem_post(&outputMutex);
     }
@@ -191,10 +189,10 @@ static void* redrawThread(void* arg)
         sem_wait(&redrawMutex);
         sem_wait(&outputMutex);
 
-        if (verbose)
-            tidyStats();
+        if (invocOptions.verbose)
+            tidyStats(&procWindow);
         else
-            clearScreen();
+            clearScreen(&procWindow);
         fflush(stdout);
 
     debounce:
@@ -208,8 +206,8 @@ static void* redrawThread(void* arg)
         if (retval == 0)
             goto debounce;
 
-        printStats(false, true);
-        if ((!verbose) && (inputBuffer))
+        printStats(false, true, &procWindow);
+        if ((!invocOptions.verbose) && (inputBuffer))
         {
             fputs((const char*)inputBuffer, stdout);
             fflush(stdout);
@@ -224,7 +222,7 @@ static void* redrawThread(void* arg)
 static void sigwinchHandler(int sigNum)
 {
     (void)(sigNum);
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &termSize);
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &procWindow.termSize);
     sem_post(&redrawMutex);
 }
 
@@ -232,18 +230,18 @@ static void sigwinchHandler(int sigNum)
 static noreturn void sigintHandler(int sigNum)
 {
     (void)sigNum;
-    if (debug)
+    if (invocOptions.debug)
         fclose(debugFile);
     if (outputFile)
         fclose(outputFile);
 
-    tidyStats();
+    tidyStats(&procWindow);
     unsetTextFormat();
-    printf("\n(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum), sigNum,
-           proc_runtime());
+    printf("\n(%s) %s (signal %d) after %.03fs\n", childProcessName, strsignal(sigNum),
+           sigNum, proc_runtime(&procWindow));
 
-    if (alternateBuffer)
-        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
+    if (procWindow.alternateBuffer)
+        fputs("\e[?1049l", stdout);  // Switch to normal screen buffer
     fflush(stdout);
     tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
     exit(EXIT_SUCCESS);
@@ -275,7 +273,8 @@ static void setupInterupts(void)
 
 
 
-noreturn static int runCommand(int outputPipe[2], int inputPipe[2], const char** commandLine)
+noreturn static int runCommand(int outputPipe[2], int inputPipe[2],
+                               const char** commandLine)
 {
     const char* command;
     int status_code;
@@ -290,7 +289,8 @@ noreturn static int runCommand(int outputPipe[2], int inputPipe[2], const char**
 
     command = commandLine[0];
     status_code = execvp(command, (char* const*)commandLine);
-    showError(EXIT_FAILURE, false, "cannot run %s, execvp returned %d\n", command, status_code);
+    showError(EXIT_FAILURE, false, "cannot run %s, execvp returned %d\n", command,
+              status_code);
     /* does not return */
 }
 
@@ -300,8 +300,8 @@ static void readOutput(int outputPipe[2], int inputPipe[2])
     pthread_t threadId, readThread, inputThread;
     int exitStatus;
 
-    close(outputPipe[1]);    // Close write end of fd, only need read
-    close(inputPipe[0]);     // Close read end of fd, only need write
+    close(outputPipe[1]);  // Close write end of fd, only need read
+    close(inputPipe[0]);   // Close read end of fd, only need write
     setupInterupts();
     initConsole();
 
@@ -319,25 +319,25 @@ static void readOutput(int outputPipe[2], int inputPipe[2])
     tick_create(tickCallback, 0U, MSEC_TO_NSEC(50U), true);
 
     wait(&exitStatus);
-    pthread_join(readThread, NULL);    // Wait for everything to complete
+    pthread_join(readThread, NULL);  // Wait for everything to complete
 
-    if (alternateBuffer)
-        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
+    if (procWindow.alternateBuffer)
+        fputs("\e[?1049l", stdout);  // Switch to normal screen buffer
     unsetTextFormat();
-    gotoStatLine();
+    gotoStatLine(&procWindow);
     tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
 
     if (WIFSTOPPED(exitStatus))
-        printf("(%s) stopped by signal %d in %.03fs\n", childProcessName, WSTOPSIG(exitStatus),
-               proc_runtime());
+        printf("(%s) stopped by signal %d in %.03fs\n", childProcessName,
+               WSTOPSIG(exitStatus), proc_runtime(&procWindow));
     else if (WIFSIGNALED(exitStatus))
-        printf("(%s) terminated by signal %d in %.03fs\n", childProcessName, WTERMSIG(exitStatus),
-               proc_runtime());
+        printf("(%s) terminated by signal %d in %.03fs\n", childProcessName,
+               WTERMSIG(exitStatus), proc_runtime(&procWindow));
     else if (WIFEXITED(exitStatus) && WEXITSTATUS(exitStatus))
         printf("(%s) exited with non-zero status %d in %.03fs\n", childProcessName,
-               WEXITSTATUS(exitStatus), proc_runtime());
+               WEXITSTATUS(exitStatus), proc_runtime(&procWindow));
     else
-        printf("(%s) finished in %.03fs\n", childProcessName, proc_runtime());
+        printf("(%s) finished in %.03fs\n", childProcessName, proc_runtime(&procWindow));
 }
 
 
@@ -345,12 +345,14 @@ static void readOutput(int outputPipe[2], int inputPipe[2])
 static void initDebugFile(const char* program_name)
 {
     time_t rawtime;
-    char time_string[32];        // Should be ~18 characters
-    char debug_filename[128];    // Should be plenty for a filename, excess will be truncated
+    char time_string[32];      // Should be ~18 characters
+    char debug_filename[128];  // Should be plenty for a filename, excess will be
+                               // truncated
 
     time(&rawtime);
     strftime(time_string, sizeof(time_string), "%d.%m.%Y-%H.%M.%S", localtime(&rawtime));
-    snprintf(debug_filename, sizeof(debug_filename), "%s_%s.log", program_name, time_string);
+    snprintf(debug_filename, sizeof(debug_filename), "%s_%s.log", program_name,
+             time_string);
 
     debugFile = fopen(debug_filename, "w");
     if (!debugFile)
@@ -376,14 +378,14 @@ int main(int argc, char** argv)
     if (sem_init(&redrawMutex, false, 0) != 0)
         showError(EXIT_FAILURE, false, "sem_init failed\n");
 
-    commandLine = getArgs(argc, argv, &outputFile, &verbose, &debug);
+    commandLine = getArgs(argc, argv, &outputFile, &invocOptions);
     childProcessName = commandLine[0];
 
-    if (debug)
+    if (invocOptions.debug)
         initDebugFile(childProcessName);
 
-    ioctl(0, TIOCGWINSZ, &termSize);
-    clock_gettime(CLOCK_MONOTONIC, &procStartTime);
+    ioctl(0, TIOCGWINSZ, &procWindow.termSize);
+    clock_gettime(CLOCK_MONOTONIC, &procWindow.procStartTime);
 
     pid = fork();
     if (pid < 0)
@@ -393,14 +395,14 @@ int main(int argc, char** argv)
     else
         readOutput(outputPipe, inputPipe);
 
-    if (alternateBuffer)
-        fputs("\e[?1049l", stdout);    // Switch to normal screen buffer
+    if (procWindow.alternateBuffer)
+        fputs("\e[?1049l", stdout);  // Switch to normal screen buffer
     fflush(stdout);
 
     sem_destroy(&outputMutex);
     sem_destroy(&redrawMutex);
 
-    if (debug)
+    if (invocOptions.debug)
         fclose(debugFile);
 
     if (outputFile)

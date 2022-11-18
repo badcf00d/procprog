@@ -1,20 +1,16 @@
 #include "util.h"
-#include <bits/getopt_core.h>    // for optind, optarg
-#include <getopt.h>              // for no_argument, getopt_long, option, requ...
-#include <stdarg.h>              // for va_end, va_start
-#include <stdbool.h>             // for bool, false, true
-#include <stdio.h>               // for puts, NULL, printf, fopen, fputs, vprintf
-#include <stdlib.h>              // for exit, EXIT_FAILURE, EXIT_SUCCESS
-#include <stdnoreturn.h>         // for noreturn
-#include <sys/ioctl.h>           // for winsize
-#include <time.h>                // for timespec, clock_gettime, CLOCK_MONOTONIC
-#include "graphics.h"            // for printChar, ANSI_FG_RED, ANSI_RESET_ALL
-#include "timer.h"               // for timespecsub
-
-extern struct timespec procStartTime;
-extern unsigned numCharacters;
-extern volatile struct winsize termSize;
-
+#include "graphics.h"  // for printChar, ANSI_FG_RED, ANSI_RESET_ALL
+#include "main.h"
+#include "timer.h"             // for timespecsub
+#include <bits/getopt_core.h>  // for optind, optarg
+#include <getopt.h>            // for no_argument, getopt_long, option, requ...
+#include <stdarg.h>            // for va_end, va_start
+#include <stdbool.h>           // for bool, false, true
+#include <stdio.h>             // for puts, NULL, printf, fopen, fputs, vprintf
+#include <stdlib.h>            // for exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <stdnoreturn.h>       // for noreturn
+#include <sys/ioctl.h>         // for winsize
+#include <time.h>              // for timespec, clock_gettime, CLOCK_MONOTONIC
 
 unsigned printable_strlen(const char* str)
 {
@@ -40,62 +36,45 @@ unsigned printable_strlen(const char* str)
 }
 
 
-
-void tabToSpaces(bool verbose, unsigned char* inputBuffer)
-{
-    printChar(' ', verbose, inputBuffer);
-
-    if (numCharacters > termSize.ws_col)
-    {
-        while ((numCharacters - termSize.ws_col) % 8)
-            printChar(' ', verbose, inputBuffer);
-    }
-    else
-    {
-        while ((numCharacters % 8) && (numCharacters < termSize.ws_col))
-            printChar(' ', verbose, inputBuffer);
-    }
-}
-
-
-
-double proc_runtime(void)
+double proc_runtime(window_t* window)
 {
     struct timespec timeDiff;
     struct timespec now;
 
     clock_gettime(CLOCK_MONOTONIC, &now);
-    timespecsub(&now, &procStartTime, &timeDiff);
+    timespecsub(&now, &window->procStartTime, &timeDiff);
 
     return timeDiff.tv_sec + (timeDiff.tv_nsec * 1e-9);
 }
 
 
 
-const char** getArgs(int argc, char** argv, FILE** outputFile, bool* verbose, bool* debug)
+const char** getArgs(int argc, char** argv, FILE** outputFile, options_t* options)
 {
-    static struct option longOpts[] = {
-        {"append", no_argument, NULL, 'a'},  {"debug", no_argument, NULL, 'd'},
-        {"help", no_argument, NULL, 'h'},    {"output-file", required_argument, NULL, 'o'},
-        {"verbose", no_argument, NULL, 'v'}, {"version", no_argument, NULL, 'V'},
-        {NULL, no_argument, NULL, 0}};
+    static struct option longOpts[] = {{"append", no_argument, NULL, 'a'},
+                                       {"debug", no_argument, NULL, 'd'},
+                                       {"help", no_argument, NULL, 'h'},
+                                       {"output-file", required_argument, NULL, 'o'},
+                                       {"verbose", no_argument, NULL, 'v'},
+                                       {"version", no_argument, NULL, 'V'},
+                                       {NULL, no_argument, NULL, 0}};
     int optc;
     bool append = false;
     char* outFilename = NULL;
-    *verbose = false;
-    *debug = false;
+    options->verbose = false;
+    options->debug = false;
 
     while ((optc = getopt_long(argc, argv, "+adho:vV", longOpts, (int*)0)) != EOF)
     {
         switch (optc)
         {
         case 'h':
-            showUsage(EXIT_SUCCESS);    // Doesn't return
+            showUsage(EXIT_SUCCESS);  // Doesn't return
         case 'v':
-            *verbose = true;
+            options->verbose = true;
             break;
         case 'V':
-            showVersion(EXIT_SUCCESS);    // Doesn't return
+            showVersion(EXIT_SUCCESS);  // Doesn't return
         case 'a':
             append = true;
             break;
@@ -103,7 +82,7 @@ const char** getArgs(int argc, char** argv, FILE** outputFile, bool* verbose, bo
             outFilename = optarg;
             break;
         case 'd':
-            *debug = true;
+            options->debug = true;
             break;
         default:
             showUsage(EXIT_FAILURE);
@@ -112,7 +91,8 @@ const char** getArgs(int argc, char** argv, FILE** outputFile, bool* verbose, bo
 
     if (optind == argc)
     {
-        showError(EXIT_FAILURE, true, "Can't find a program to run, optind = %d\n\n", optind);
+        showError(EXIT_FAILURE, true, "Can't find a program to run, optind = %d\n\n",
+                  optind);
     }
 
     if (outFilename)
@@ -143,7 +123,8 @@ noreturn void showUsage(int status)
 
     puts("Examples:");
     puts("\tprocproc make         build a project, showing progress and system usage");
-    puts("\tprocprog -v 7z b      run a benchmark to test the usage display and show all output\n");
+    puts("\tprocprog -v 7z b      run a benchmark to test the usage display and show all "
+         "output\n");
 
     printf("Report bugs to <%s>\n", CONTACTS);
 

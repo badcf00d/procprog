@@ -1,7 +1,8 @@
 #pragma once
 
-#include <stdbool.h>    // for bool
-#include <time.h>       // for timespec
+#include "main.h"
+#include <stdbool.h>  // for bool
+#include <time.h>     // for timespec
 
 #define STAT_FORMAT_LENGTH 128
 
@@ -40,5 +41,5 @@ struct cpuStat
     unsigned long long tIdle;
 };
 
-void printStats(bool newLine, bool redraw);
+void printStats(bool newLine, bool redraw, window_t* window);
 void advanceSpinner(void);

@@ -1,6 +1,9 @@
 #pragma once
 
+#include "main.h"
 #include <stdbool.h>
+#include <sys/ioctl.h>
+#include <time.h>
 
 
 // clang-format off
@@ -56,11 +59,17 @@
 #define ANSI_BG_WHITE    "\e[107m"
 // clang-format on
 
-void returnToStartLine(bool clearText);
-void gotoStatLine(void);
-void tidyStats(void);
-void clearScreen(void);
+
+
+
+void returnToStartLine(bool clearText, window_t* window);
+void gotoStatLine(window_t* window);
+void tidyStats(window_t* window);
+void clearScreen(window_t* window);
 void setTextFormat(void);
 void unsetTextFormat(void);
-void processChar(unsigned char character, bool verbose, unsigned char* inputBuffer);
-void printChar(unsigned char character, bool verbose, unsigned char* inputBuffer);
+void processChar(unsigned char character, unsigned char* inputBuffer, options_t* options,
+                 window_t* window);
+void printChar(unsigned char character, unsigned char* inputBuffer, options_t* options,
+               window_t* window);
+void tabToSpaces(unsigned char* inputBuffer, options_t* options, window_t* window);

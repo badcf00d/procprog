@@ -17,7 +17,8 @@ SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
 OBJ := $(SRC:$(SRC_DIR)%.c=$(OBJ_DIR)/%.o)
 DOT := $(EXE).ltrans0.231t.optimized.dot
 LIBS := -lrt -lpthread
-CFLAGS := -Wall -Wextra -std=gnu99 -fpie -O2 -flto -gdwarf-4 -D_FORTIFY_SOURCE=2 -DVERSION=\"$(DEB_VERSION)\" -g3
+WARNINGS := -Wall -Wextra -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wrestrict -Wnull-dereference -Wshadow -Wformat=2
+CFLAGS := $(WARNINGS) -std=gnu99 -fpie -O2 -flto -gdwarf-4 -g3 -D_FORTIFY_SOURCE=2 -DVERSION=\"$(DEB_VERSION)\" 
 
 GCC_10 := $(shell expr `cc -dumpversion | cut -f1 -d.` \>= 10)
 ifeq ($(GCC_10),1)
@@ -73,7 +74,7 @@ iwyu: $(SRC:%.c=%.iwyu)
 
 tidy: $(SRC) $(HEADER)
 	$(info clang-tidy: $^)
-	@clang-tidy --format-style=file -checks=$(TIDY_CHECKS),$(TIDY_IGNORE) $^ -- $(CFLAGS)
+	@clang-tidy --format-style=file -checks=$(TIDY_CHECKS),$(TIDY_IGNORE) $^ -- $(subst -fanalyzer,,$(CFLAGS))
 
 check-format: $(SRC) $(HEADER)
 	$(info clang-format: $^)
