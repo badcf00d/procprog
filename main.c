@@ -3,7 +3,6 @@
 #include "timer.h"        // for tick_create, MSEC_TO_NSEC
 #include "util.h"         // for showError, proc_runtime, printChar
 #include <ctype.h>        // for isprint
-#include <errno.h>        // for EINTR, errno
 #include <pthread.h>      // for pthread_create, pthread_join, pth...
 #include <semaphore.h>    // for sem_post, sem_wait, sem_destroy
 #include <signal.h>       // for sigaction, sigemptyset, sa_handler

@@ -1,16 +1,15 @@
 #include "util.h"
-#include "graphics.h"  // for printChar, ANSI_FG_RED, ANSI_RESET_ALL
-#include "main.h"
-#include "timer.h"             // for timespecsub
-#include <bits/getopt_core.h>  // for optind, optarg
-#include <getopt.h>            // for no_argument, getopt_long, option, requ...
-#include <stdarg.h>            // for va_end, va_start
-#include <stdbool.h>           // for bool, false, true
-#include <stdio.h>             // for puts, NULL, printf, fopen, fputs, vprintf
-#include <stdlib.h>            // for exit, EXIT_FAILURE, EXIT_SUCCESS
-#include <stdnoreturn.h>       // for noreturn
-#include <sys/ioctl.h>         // for winsize
-#include <time.h>              // for timespec, clock_gettime, CLOCK_MONOTONIC
+#include "graphics.h"     // for ANSI_FG_RED, ANSI_RESET_ALL
+#include "main.h"         // for options_t, window_t
+#include "timer.h"        // for timespecsub
+#include <getopt.h>       // for no_argument, getopt_long, option, requ...
+#include <stdarg.h>       // for va_end, va_start
+#include <stdbool.h>      // for false, true, bool
+#include <stdio.h>        // for puts, NULL, printf, fopen, fputs, vprintf
+#include <stdlib.h>       // for exit, EXIT_FAILURE, EXIT_SUCCESS
+#include <stdnoreturn.h>  // for noreturn
+#include <time.h>         // for timespec, clock_gettime, CLOCK_MONOTONIC
+
 
 unsigned printable_strlen(const char* str)
 {

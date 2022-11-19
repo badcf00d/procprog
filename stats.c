@@ -1,15 +1,15 @@
 #include "stats.h"
-#include "graphics.h"  // for ANSI_RESET_ALL, gotoStatLine, ANSI_FG_CYAN
-#include "main.h"
+#include "graphics.h"   // for ANSI_RESET_ALL, gotoStatLine, ANSI_FG_CYAN
+#include "main.h"       // for window_t
 #include "timer.h"      // for timespecsub, SECS_IN_DAY, SEC_TO_MSEC
 #include "util.h"       // for printable_strlen
-#include <printf.h>     // for parse_printf_format
-#include <stdarg.h>     // for va_end, va_list, va_start, va_arg
+#include <stdarg.h>     // for va_end, va_list, va_start
 #include <stdbool.h>    // for false, bool, true
 #include <stdio.h>      // for fputs, sscanf, fclose, fgets, fopen, stdout
+#include <stdlib.h>     // for strtol
 #include <string.h>     // for memcpy, strncmp, memset, strncat
 #include <sys/ioctl.h>  // for winsize
-#include <time.h>       // for timespec, NULL, clock_gettime, CLOCK_MONOTONIC
+#include <time.h>       // for NULL, timespec, clock_gettime, CLOCK_MONOTONIC
 
 
 static char spinner = '-';
@@ -39,9 +39,6 @@ void advanceSpinner(void)
 // On linux this will always be false on the first call
 static bool getCPUUsage(float* usage, statColour_t* status)
 {
-    if (usage == NULL)
-        return false;
-
     FILE* fp;
     char* retVal;
     char statLine[256];  // Theoretically could be up to ~220 characters, usually ~50
@@ -50,11 +47,12 @@ static bool getCPUUsage(float* usage, statColour_t* status)
     struct cpuStat newReading;
     static struct cpuStat oldReading;
 
+    if ((usage == NULL) || (status == NULL))
+        return false;
+
     fp = fopen("/proc/stat", "r");
     if (fp == NULL)
-    {
         return false;
-    }
 
     retVal = fgets(statLine, sizeof(statLine), fp);
     fclose(fp);
@@ -63,11 +61,14 @@ static bool getCPUUsage(float* usage, statColour_t* status)
         return false;
     }
 
-    sscanf(statLine, "cpu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
-           &(statBuffer.tUser), &(statBuffer.tNice), &(statBuffer.tSystem),
-           &(statBuffer.tIdle), &(statBuffer.tIoWait), &(statBuffer.tIrq),
-           &(statBuffer.tSoftIrq), &(statBuffer.tSteal), &(statBuffer.tGuest),
-           &(statBuffer.tGuestNice));
+    if (sscanf(statLine, "cpu %llu %llu %llu %llu %llu %llu %llu %llu %llu %llu",
+               &(statBuffer.tUser), &(statBuffer.tNice), &(statBuffer.tSystem),
+               &(statBuffer.tIdle), &(statBuffer.tIoWait), &(statBuffer.tIrq),
+               &(statBuffer.tSoftIrq), &(statBuffer.tSteal), &(statBuffer.tGuest),
+               &(statBuffer.tGuestNice)) != 10)
+    {
+        return false;
+    }
 
     newReading.tBusy = statBuffer.tUser + statBuffer.tNice + statBuffer.tSystem +
                        statBuffer.tIrq + statBuffer.tSoftIrq + statBuffer.tSteal +
@@ -85,7 +86,7 @@ static bool getCPUUsage(float* usage, statColour_t* status)
                    (oldReading.tBusy + oldReading.tIdle);
         idleTime = newReading.tIdle - oldReading.tIdle;
 
-        if (interval <= 0)
+        if ((interval <= 0) || (idleTime >= interval))
             return false;
 
         *usage = ((interval - idleTime) / interval) * 100;
@@ -106,35 +107,41 @@ static bool getCPUUsage(float* usage, statColour_t* status)
 
 static bool getMemUsage(float* usage, statColour_t* status)
 {
-    if (usage == NULL)
-        return false;
-
     char memLine[64];  // should really be around 30 characters
     FILE* fp;
     unsigned long memAvailable = 0, memTotal = 0;
-    unsigned char fieldsFound = 0;
+    bool gotTotal = false;
+    bool gotAvailable = false;
+
+    if ((usage == NULL) || (status == NULL))
+        return false;
 
     fp = fopen("/proc/meminfo", "r");
     if (fp == NULL)
-    {
         return false;
-    }
 
-    while ((fgets(memLine, sizeof(memLine), fp)) && (fieldsFound != 0b11))
+    while ((fgets(memLine, sizeof(memLine), fp)) && (!gotTotal || !gotAvailable))
     {
         if (strncmp(memLine, "Mem", 3) == 0)
         {
-            if (((fieldsFound & 0b01) == 0) &&
-                ((fieldsFound |= sscanf(memLine, "MemTotal: %lu", &memTotal)) > 0))
+            if (!gotTotal)
             {
-                continue;
+                if (sscanf(memLine, "MemTotal: %lu", &memTotal) == 1)
+                {
+                    gotTotal = true;
+                    continue;  // No point looking for available on this line
+                }
             }
-            fieldsFound |= sscanf(memLine, "MemAvailable: %lu", &memAvailable) << 1;
+            if (!gotAvailable)
+            {
+                if (sscanf(memLine, "MemAvailable: %lu", &memAvailable) == 1)
+                    gotAvailable = true;
+            }
         }
     }
     fclose(fp);
 
-    if ((fieldsFound == 0b11) && (memTotal != 0))
+    if (gotTotal && gotAvailable && (memTotal != 0))
     {
         *usage = (1 - ((float)memAvailable / memTotal)) * 100;
         if (*usage >= MEMORY_RED)
@@ -156,9 +163,6 @@ static bool getMemUsage(float* usage, statColour_t* status)
 
 static bool getNetdevUsage(float* download, float* upload, statColour_t* status)
 {
-    if ((download == NULL) || (upload == NULL))
-        return false;
-
     static struct netDevReading oldReading;
     struct netDevReading newReading = {0};
     unsigned long long bytesDown, bytesUp;
@@ -167,24 +171,27 @@ static bool getNetdevUsage(float* download, float* upload, statColour_t* status)
     float interval;
     FILE* fp;
 
+    if ((download == NULL) || (upload == NULL) || (status == NULL))
+        return false;
+
     memset(&newReading, 0, sizeof(newReading));
     clock_gettime(CLOCK_MONOTONIC, &newReading.time);
 
     fp = fopen("/proc/net/dev", "r");
     if (fp == NULL)
-    {
         return false;
-    }
 
     while (fgets(devLine, sizeof(devLine), fp))
     {
         // Ignores all of the table title rows, and the loopback device
         if (*(devLine + 4) != 'l' && *(devLine + 5) != 'o' && *(devLine + 6) == ':')
         {
-            sscanf(devLine + 7, "%llu %*u %*u %*u %*u %*u %*u %*u %llu", &bytesDown,
-                   &bytesUp);
-            newReading.bytesDown += bytesDown;
-            newReading.bytesUp += bytesUp;
+            if (sscanf(devLine + 7, "%llu %*u %*u %*u %*u %*u %*u %*u %llu", &bytesDown,
+                       &bytesUp) == 2)
+            {
+                newReading.bytesDown += bytesDown;
+                newReading.bytesUp += bytesUp;
+            }
         }
     }
     fclose(fp);
@@ -228,38 +235,49 @@ static bool getNetdevUsage(float* download, float* upload, statColour_t* status)
 
 static bool getDiskUsage(float* activity, statColour_t* status)
 {
-    if (activity == NULL)
-        return false;
-
     static struct diskReading oldReading;
-    struct diskReading newReading;
+    struct diskReading newReading = {0};
     struct timespec timeDiff;
     unsigned long tBusy;
+    int majorNum = __INT_MAX__;
     char devLine[256];  // should be no longer than ~120 characters
     float interval;
     FILE* fp;
+
+    if ((activity == NULL) || (status == NULL))
+        return false;
 
     memset(&newReading, 0, sizeof(newReading));
     clock_gettime(CLOCK_MONOTONIC, &newReading.time);
 
     fp = fopen("/proc/diskstats", "r");
     if (fp == NULL)
-    {
         return false;
-    }
 
     while (fgets(devLine, sizeof(devLine), fp))
     {
-        if ((strncmp(devLine + 13, "sd", 2) == 0) ||
-            (strncmp(devLine + 13, "hd", 2) == 0))
+        // Output generated by diskstats_show() in block/genhd.c
+        // Skip major numbers we've already seen to avoid double-counting
+        if ((strtol(devLine, NULL, 10) != majorNum) &&
+            ((strncmp(devLine + 13, "sd", 2) == 0) ||
+             (strncmp(devLine + 13, "hd", 2) == 0) ||
+             (strncmp(devLine + 13, "nvme", 4) == 0)))
         {
-            sscanf(devLine + 13, "%*s %*u %*u %*u %*u %*u %*u %*u %*u %*u %lu", &tBusy);
-            newReading.tBusy += tBusy;
+            // Element 13 is total ms spent active
+            if (sscanf(devLine, " %d %*d %*s %*u %*u %*u %*u %*u %*u %*u %*u %*u %lu",
+                       &majorNum, &tBusy) == 2)
+            {
+                newReading.tBusy += tBusy;
+            }
         }
     }
     fclose(fp);
 
-    if (oldReading.time.tv_sec == 0)
+    if (majorNum == __INT_MAX__)
+    {
+        return false;
+    }
+    else if (oldReading.time.tv_sec == 0)
     {
         memcpy(&oldReading, &newReading, sizeof(oldReading));
         return false;
