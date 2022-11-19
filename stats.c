@@ -14,10 +14,8 @@
 
 static char spinner = '-';
 
-static void addStatIfRoom(window_t* window, char* statOutput, const char* format, ...)
-    __attribute__((format(printf, 3, 4)));
-static char* getStatFormat(char* buffer, const char* format, double amberVal,
-                           double redVal, ...) __attribute__((format(printf, 2, 5)));
+static void addStatIfRoom(window_t* window, char* statOutput, statColour_t status,
+                          const char* format, ...) __attribute__((format(printf, 4, 5)));
 
 void advanceSpinner(void)
 {
@@ -39,7 +37,7 @@ void advanceSpinner(void)
 }
 
 // On linux this will always be false on the first call
-static bool getCPUUsage(float* usage)
+static bool getCPUUsage(float* usage, statColour_t* status)
 {
     if (usage == NULL)
         return false;
@@ -91,6 +89,13 @@ static bool getCPUUsage(float* usage)
             return false;
 
         *usage = ((interval - idleTime) / interval) * 100;
+        if (*usage >= CPU_RED)
+            *status = STAT_COLOUR_RED;
+        else if (*usage >= CPU_AMBER)
+            *status = STAT_COLOUR_AMBER;
+        else
+            *status = STAT_COLOUR_GREY;
+
         memcpy(&oldReading, &newReading, sizeof(oldReading));
         return true;
     }
@@ -99,7 +104,7 @@ static bool getCPUUsage(float* usage)
 
 
 
-static bool getMemUsage(float* usage)
+static bool getMemUsage(float* usage, statColour_t* status)
 {
     if (usage == NULL)
         return false;
@@ -132,6 +137,12 @@ static bool getMemUsage(float* usage)
     if ((fieldsFound == 0b11) && (memTotal != 0))
     {
         *usage = (1 - ((float)memAvailable / memTotal)) * 100;
+        if (*usage >= MEMORY_RED)
+            *status = STAT_COLOUR_RED;
+        else if (*usage >= MEMORY_AMBER)
+            *status = STAT_COLOUR_AMBER;
+        else
+            *status = STAT_COLOUR_GREY;
         return true;
     }
     else
@@ -143,7 +154,7 @@ static bool getMemUsage(float* usage)
 
 
 
-static bool getNetdevUsage(float* download, float* upload)
+static bool getNetdevUsage(float* download, float* upload, statColour_t* status)
 {
     if ((download == NULL) || (upload == NULL))
         return false;
@@ -201,6 +212,13 @@ static bool getNetdevUsage(float* download, float* upload)
         *download = (bytesDown / 1000.0f) / interval;
         *upload = (bytesUp / 1000.0f) / interval;
 
+        if ((*download >= NET_RED) || (*upload >= NET_RED))
+            *status = STAT_COLOUR_RED;
+        else if ((*download >= NET_AMBER) || (*upload >= NET_AMBER))
+            *status = STAT_COLOUR_AMBER;
+        else
+            *status = STAT_COLOUR_GREY;
+
         memcpy(&oldReading, &newReading, sizeof(oldReading));
         return true;
     }
@@ -208,7 +226,7 @@ static bool getNetdevUsage(float* download, float* upload)
 
 
 
-static bool getDiskUsage(float* activity)
+static bool getDiskUsage(float* activity, statColour_t* status)
 {
     if (activity == NULL)
         return false;
@@ -255,72 +273,54 @@ static bool getDiskUsage(float* activity)
             return false;
 
         *activity = (100 * (newReading.tBusy - oldReading.tBusy)) / interval;
+        if (*activity >= DISK_RED)
+            *status = STAT_COLOUR_RED;
+        else if (*activity >= DISK_AMBER)
+            *status = STAT_COLOUR_AMBER;
+        else
+            *status = STAT_COLOUR_GREY;
+
         memcpy(&oldReading, &newReading, sizeof(oldReading));
         return true;
     }
 }
 
 
-static void addStatIfRoom(window_t* window, char* statOutput, const char* format, ...)
+static void addStatIfRoom(window_t* window, char* statOutput, statColour_t status,
+                          const char* format, ...)
 {
     unsigned prevLength = printable_strlen(statOutput);
-    char buffer[STAT_FORMAT_LENGTH] = {0};
+    char format_buffer[64] = {0};  // The longest this should be is ~45 chars
+    char output_buffer[64] = {0};  // The longest this should be is ~40 chars
     va_list varArgs;
+
+    if (status == STAT_COLOUR_RED)
+        sprintf(format_buffer, " [" ANSI_FG_RED "%s" ANSI_RESET_ALL "]", format);
+    else if (status == STAT_COLOUR_AMBER)
+        sprintf(format_buffer, " [" ANSI_FG_YELLOW "%s" ANSI_RESET_ALL "]", format);
+    else
+        sprintf(format_buffer, " [" ANSI_FG_DGRAY "%s" ANSI_RESET_ALL "]", format);
 
     va_start(varArgs, format);
-    vsprintf(buffer, format, varArgs);
+    vsprintf(output_buffer, format_buffer, varArgs);
     va_end(varArgs);
 
-    if ((prevLength + printable_strlen(buffer)) < window->termSize.ws_col)
-        strncat(statOutput, buffer, STAT_FORMAT_LENGTH);
+    if ((prevLength + printable_strlen(output_buffer)) < window->termSize.ws_col)
+        strncat(statOutput, output_buffer, STAT_OUTPUT_LENGTH - prevLength);
 }
-
-
-
-static char* getStatFormat(char* buffer, const char* format, double amberVal,
-                           double redVal, ...)
-{
-    size_t numStats = parse_printf_format(format, 0, NULL);
-    bool amber = false;
-    bool red = false;
-    va_list varArgs;
-    float stat;
-
-    va_start(varArgs, redVal);
-    for (; numStats > 0; numStats--)
-    {
-        stat = va_arg(varArgs, double);
-        if (stat >= redVal)
-            red = true;
-        else if (stat >= amberVal)
-            amber = true;
-    }
-    va_end(varArgs);
-
-    if (red)
-        sprintf(buffer, " [" ANSI_FG_RED "%s" ANSI_RESET_ALL "]", format);
-    else if (amber)
-        sprintf(buffer, " [" ANSI_FG_YELLOW "%s" ANSI_RESET_ALL "]", format);
-    else
-        sprintf(buffer, " [" ANSI_FG_DGRAY "%s" ANSI_RESET_ALL "]", format);
-
-    return buffer;
-}
-
-
 
 void printStats(bool newLine, bool redraw, window_t* window)
 {
     struct timespec timeDiff;
     struct timespec currentTime;
-    char statOutput[256] = {0};
-    char statFormat[STAT_FORMAT_LENGTH] = {0};
+    char statOutput[STAT_OUTPUT_LENGTH] = {0};  // Max should be ~100 chars
     static float cpuUsage = __FLT_MAX__;
     static float memUsage = __FLT_MAX__;
     static float diskUsage = __FLT_MAX__;
     static float download = __FLT_MAX__;
     static float upload = __FLT_MAX__;
     unsigned numLines = window->numCharacters / (window->termSize.ws_col + 1);
+    statColour_t status = STAT_COLOUR_GREY;
 
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     // cppcheck-suppress unreadVariable
@@ -331,30 +331,26 @@ void printStats(bool newLine, bool redraw, window_t* window)
             (timeDiff.tv_sec % SECS_IN_DAY) / 3600, (timeDiff.tv_sec % 3600) / 60,
             (timeDiff.tv_sec % 60), spinner);
 
-    if (((cpuUsage != __FLT_MAX__) && redraw) || getCPUUsage(&cpuUsage))
+    if (((cpuUsage != __FLT_MAX__) && redraw) || getCPUUsage(&cpuUsage, &status))
     {
-        getStatFormat(statFormat, "CPU: %4.1f%%", 20, 80, cpuUsage);
-        addStatIfRoom(window, statOutput, statFormat, cpuUsage);
+        addStatIfRoom(window, statOutput, status, "CPU: %4.1f%%", cpuUsage);
     }
 
-    if (((memUsage != __FLT_MAX__) && redraw) || getMemUsage(&memUsage))
+    if (((memUsage != __FLT_MAX__) && redraw) || getMemUsage(&memUsage, &status))
     {
-        getStatFormat(statFormat, "Mem: %4.1f%%", 60, 80, memUsage);
-        addStatIfRoom(window, statOutput, statFormat, memUsage);
+        addStatIfRoom(window, statOutput, status, "Mem: %4.1f%%", memUsage);
     }
 
     if (((download != __FLT_MAX__) && (upload != __FLT_MAX__) && redraw) ||
-        getNetdevUsage(&download, &upload))
+        getNetdevUsage(&download, &upload, &status))
     {
-        getStatFormat(statFormat, "Rx/Tx: %4.1fKB/s / %.1fKB/s", 1000, 100000, download,
+        addStatIfRoom(window, statOutput, status, "Rx/Tx: %4.1fKB/s / %.1fKB/s", download,
                       upload);
-        addStatIfRoom(window, statOutput, statFormat, download, upload);
     }
 
-    if (((diskUsage != __FLT_MAX__) && redraw) || getDiskUsage(&diskUsage))
+    if (((diskUsage != __FLT_MAX__) && redraw) || getDiskUsage(&diskUsage, &status))
     {
-        getStatFormat(statFormat, "Disk: %4.1f%%", 20, 80, diskUsage);
-        addStatIfRoom(window, statOutput, statFormat, diskUsage);
+        addStatIfRoom(window, statOutput, status, "Disk: %4.1f%%", diskUsage);
     }
 
     if (newLine)

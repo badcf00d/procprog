@@ -4,8 +4,26 @@
 #include <stdbool.h>  // for bool
 #include <time.h>     // for timespec
 
-#define STAT_FORMAT_LENGTH 128
+#define STAT_OUTPUT_LENGTH 128
 
+#define CPU_AMBER 20.f
+#define CPU_RED 80.f
+
+#define MEMORY_AMBER 60.f
+#define MEMORY_RED 80.f
+
+#define DISK_AMBER 20.f
+#define DISK_RED 80.f
+
+#define NET_AMBER 1000.f
+#define NET_RED 10000.f
+
+typedef enum
+{
+    STAT_COLOUR_GREY,
+    STAT_COLOUR_AMBER,
+    STAT_COLOUR_RED,
+} statColour_t;
 
 struct procStat
 {
