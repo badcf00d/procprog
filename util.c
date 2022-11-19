@@ -117,7 +117,7 @@ noreturn void showUsage(int status)
     puts("\t-a, --append          with -o FILE, append instead of overwriting");
     puts("\t-d, --debug           create a very verbose debug file of stdout and stdin");
     puts("\t-h, --help            display this help and exit");
-    puts("\t-o, --output=FILE     write to FILE instead of stderr\n");
+    puts("\t-o, --output=FILE     write to FILE instead of stdout\n");
     puts("\t-v, --verbose         display all output from the child process");
     puts("\t-V, --version         output version information and exit");
 
