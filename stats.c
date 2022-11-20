@@ -37,7 +37,7 @@ void advanceSpinner(void)
 }
 
 // On linux this will always be false on the first call
-static bool getCPUUsage(float* usage, statColour_t* status)
+static bool getCPUUsage(float* usage)
 {
     FILE* fp;
     char* retVal;
@@ -47,7 +47,7 @@ static bool getCPUUsage(float* usage, statColour_t* status)
     struct cpuStat newReading;
     static struct cpuStat oldReading;
 
-    if ((usage == NULL) || (status == NULL))
+    if (usage == NULL)
         return false;
 
     fp = fopen("/proc/stat", "r");
@@ -90,13 +90,6 @@ static bool getCPUUsage(float* usage, statColour_t* status)
             return false;
 
         *usage = ((interval - idleTime) / interval) * 100;
-        if (*usage >= CPU_RED)
-            *status = STAT_COLOUR_RED;
-        else if (*usage >= CPU_AMBER)
-            *status = STAT_COLOUR_AMBER;
-        else
-            *status = STAT_COLOUR_GREY;
-
         memcpy(&oldReading, &newReading, sizeof(oldReading));
         return true;
     }
@@ -105,7 +98,7 @@ static bool getCPUUsage(float* usage, statColour_t* status)
 
 
 
-static bool getMemUsage(float* usage, statColour_t* status)
+static bool getMemUsage(float* usage)
 {
     char memLine[64];  // should really be around 30 characters
     FILE* fp;
@@ -113,7 +106,7 @@ static bool getMemUsage(float* usage, statColour_t* status)
     bool gotTotal = false;
     bool gotAvailable = false;
 
-    if ((usage == NULL) || (status == NULL))
+    if (usage == NULL)
         return false;
 
     fp = fopen("/proc/meminfo", "r");
@@ -144,12 +137,6 @@ static bool getMemUsage(float* usage, statColour_t* status)
     if (gotTotal && gotAvailable && (memTotal != 0))
     {
         *usage = (1 - ((float)memAvailable / memTotal)) * 100;
-        if (*usage >= MEMORY_RED)
-            *status = STAT_COLOUR_RED;
-        else if (*usage >= MEMORY_AMBER)
-            *status = STAT_COLOUR_AMBER;
-        else
-            *status = STAT_COLOUR_GREY;
         return true;
     }
     else
@@ -161,7 +148,7 @@ static bool getMemUsage(float* usage, statColour_t* status)
 
 
 
-static bool getNetdevUsage(float* download, float* upload, statColour_t* status)
+static bool getNetdevUsage(float* download, float* upload)
 {
     static struct netDevReading oldReading;
     struct netDevReading newReading = {0};
@@ -171,7 +158,7 @@ static bool getNetdevUsage(float* download, float* upload, statColour_t* status)
     float interval;
     FILE* fp;
 
-    if ((download == NULL) || (upload == NULL) || (status == NULL))
+    if ((download == NULL) || (upload == NULL))
         return false;
 
     memset(&newReading, 0, sizeof(newReading));
@@ -219,13 +206,6 @@ static bool getNetdevUsage(float* download, float* upload, statColour_t* status)
         *download = (bytesDown / 1000.0f) / interval;
         *upload = (bytesUp / 1000.0f) / interval;
 
-        if ((*download >= NET_RED) || (*upload >= NET_RED))
-            *status = STAT_COLOUR_RED;
-        else if ((*download >= NET_AMBER) || (*upload >= NET_AMBER))
-            *status = STAT_COLOUR_AMBER;
-        else
-            *status = STAT_COLOUR_GREY;
-
         memcpy(&oldReading, &newReading, sizeof(oldReading));
         return true;
     }
@@ -233,7 +213,7 @@ static bool getNetdevUsage(float* download, float* upload, statColour_t* status)
 
 
 
-static bool getDiskUsage(float* activity, statColour_t* status)
+static bool getDiskUsage(float* activity)
 {
     static struct diskReading oldReading;
     struct diskReading newReading = {0};
@@ -244,7 +224,7 @@ static bool getDiskUsage(float* activity, statColour_t* status)
     float interval;
     FILE* fp;
 
-    if ((activity == NULL) || (status == NULL))
+    if (activity == NULL)
         return false;
 
     memset(&newReading, 0, sizeof(newReading));
@@ -291,12 +271,6 @@ static bool getDiskUsage(float* activity, statColour_t* status)
             return false;
 
         *activity = (100 * (newReading.tBusy - oldReading.tBusy)) / interval;
-        if (*activity >= DISK_RED)
-            *status = STAT_COLOUR_RED;
-        else if (*activity >= DISK_AMBER)
-            *status = STAT_COLOUR_AMBER;
-        else
-            *status = STAT_COLOUR_GREY;
 
         memcpy(&oldReading, &newReading, sizeof(oldReading));
         return true;
@@ -327,6 +301,16 @@ static void addStatIfRoom(window_t* window, char* statOutput, statColour_t statu
         strncat(statOutput, output_buffer, STAT_OUTPUT_LENGTH - prevLength);
 }
 
+static statColour_t getStatColour(float value, float amber_thr, float red_thr)
+{
+    if (value >= red_thr)
+        return STAT_COLOUR_RED;
+    else if (value >= amber_thr)
+        return STAT_COLOUR_AMBER;
+    else
+        return STAT_COLOUR_GREY;
+}
+
 void printStats(bool newLine, bool redraw, window_t* window)
 {
     struct timespec timeDiff;
@@ -338,7 +322,7 @@ void printStats(bool newLine, bool redraw, window_t* window)
     static float download = __FLT_MAX__;
     static float upload = __FLT_MAX__;
     unsigned numLines = window->numCharacters / (window->termSize.ws_col + 1);
-    statColour_t status = STAT_COLOUR_GREY;
+    statColour_t status;
 
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
     // cppcheck-suppress unreadVariable
@@ -349,25 +333,30 @@ void printStats(bool newLine, bool redraw, window_t* window)
             (timeDiff.tv_sec % SECS_IN_DAY) / 3600, (timeDiff.tv_sec % 3600) / 60,
             (timeDiff.tv_sec % 60), spinner);
 
-    if (((cpuUsage != __FLT_MAX__) && redraw) || getCPUUsage(&cpuUsage, &status))
+    if (((cpuUsage != __FLT_MAX__) && redraw) || getCPUUsage(&cpuUsage))
     {
+        status = getStatColour(cpuUsage, CPU_AMBER, CPU_RED);
         addStatIfRoom(window, statOutput, status, "CPU: %4.1f%%", cpuUsage);
     }
 
-    if (((memUsage != __FLT_MAX__) && redraw) || getMemUsage(&memUsage, &status))
+    if (((memUsage != __FLT_MAX__) && redraw) || getMemUsage(&memUsage))
     {
+        status = getStatColour(memUsage, MEMORY_AMBER, MEMORY_RED);
         addStatIfRoom(window, statOutput, status, "Mem: %4.1f%%", memUsage);
     }
 
     if (((download != __FLT_MAX__) && (upload != __FLT_MAX__) && redraw) ||
-        getNetdevUsage(&download, &upload, &status))
+        getNetdevUsage(&download, &upload))
     {
+        status = getStatColour((download > upload) ? download : upload, NET_AMBER,
+                               NET_RED);
         addStatIfRoom(window, statOutput, status, "Rx/Tx: %4.1fKB/s / %.1fKB/s", download,
                       upload);
     }
 
-    if (((diskUsage != __FLT_MAX__) && redraw) || getDiskUsage(&diskUsage, &status))
+    if (((diskUsage != __FLT_MAX__) && redraw) || getDiskUsage(&diskUsage))
     {
+        status = getStatColour(diskUsage, DISK_AMBER, DISK_RED);
         addStatIfRoom(window, statOutput, status, "Disk: %4.1f%%", diskUsage);
     }
 
