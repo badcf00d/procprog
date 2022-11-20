@@ -220,7 +220,7 @@ static void* redrawThread(void* arg)
 
 static void sigwinchHandler(int sigNum)
 {
-    (void)(sigNum);
+    (void)sigNum;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &procWindow.termSize);
     sem_post(&redrawMutex);
 }
@@ -246,11 +246,51 @@ static noreturn void sigintHandler(int sigNum)
     exit(EXIT_SUCCESS);
 }
 
+static void sigtstpHandler(int sigNum)
+{
+    sigset_t tstpMask, prevMask;
+    struct sigaction stpCatch;
+
+    (void)sigNum;
+    tidyStats(&procWindow);
+    unsetTextFormat();
+
+    if (procWindow.alternateBuffer)
+        fputs("\e[?1049l", stdout);  // Switch to normal screen buffer
+    fflush(stdout);
+    tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
+
+    // Revert sigtstp hangler to default (i.e. the terminal)
+    if (signal(SIGTSTP, SIG_DFL) == SIG_ERR)
+        showError(EXIT_FAILURE, false, "Failed to set default sigtstp\n");
+
+    // Generate a further SIGTSTP to trigger the default terminal behaviour
+    raise(SIGTSTP);
+
+    // Unblock SIGTSTP, the pending SIGTSTP immediately suspends the program
+    sigemptyset(&tstpMask);
+    sigaddset(&tstpMask, SIGTSTP);
+    if (sigprocmask(SIG_UNBLOCK, &tstpMask, &prevMask) == -1)
+        showError(EXIT_FAILURE, false, "Failed to unblock SIGTSTP\n");
+
+    // Execution resumes here after SIGCONT, re-apply previous signal mask
+    if (sigprocmask(SIG_SETMASK, &prevMask, NULL) == -1)
+        showError(EXIT_FAILURE, false, "Failed to reapply previous signal mask\n");
+
+    // Re-configure the signal handler
+    sigemptyset(&stpCatch.sa_mask);
+    stpCatch.sa_flags = SA_RESTART;
+    stpCatch.sa_handler = sigtstpHandler;
+    if (sigaction(SIGTSTP, &stpCatch, NULL) < 0)
+        showError(EXIT_FAILURE, false, "Failed sigaction for SIGTSTP\n");
+}
+
 
 
 static void setupInterupts(void)
 {
     struct sigaction intCatch;
+    struct sigaction tstpCatch;
     struct sigaction winchCatch;
 
     sigemptyset(&intCatch.sa_mask);
@@ -262,6 +302,12 @@ static void setupInterupts(void)
         showError(EXIT_FAILURE, false, "sigaction for SIGTERM failed\n");
     if (sigaction(SIGQUIT, &intCatch, NULL) < 0)
         showError(EXIT_FAILURE, false, "sigaction for SIGQUIT failed\n");
+
+    sigemptyset(&tstpCatch.sa_mask);
+    tstpCatch.sa_flags = SA_RESTART;
+    tstpCatch.sa_handler = sigtstpHandler;
+    if (sigaction(SIGTSTP, &tstpCatch, NULL) < 0)
+        showError(EXIT_FAILURE, false, "sigaction for SIGTSTP failed\n");
 
     sigemptyset(&winchCatch.sa_mask);
     winchCatch.sa_flags = SA_RESTART;
