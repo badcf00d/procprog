@@ -2,14 +2,16 @@ Source: procprog
 Section: utils
 Priority: optional
 Maintainer: Peter Frost <mail@pfrost.me>
-Build-Depends: debhelper-compat (= 12), help2man
-Standards-Version: 4.4.1
+Build-Depends: debhelper-compat (= 13), help2man
+Standards-Version: 4.6.1.0
 Homepage: https://github.com/badcf00d/procprog
 Vcs-Git: https://github.com/badcf00d/procprog.git
+Vcs-Browser: https://github.com/badcf00d/procprog
+Rules-Requires-Root: no
 
 Package: procprog
 Architecture: any
-Depends: ${shlibs:Depends} ${misc:Depends}
+Depends: ${shlibs:Depends},${misc:Depends}
 Description: Monitor program output and system usage in a single terminal
  Runs a child process, showing
  the program output showing and system
