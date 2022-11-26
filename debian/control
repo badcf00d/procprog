@@ -10,7 +10,7 @@ Vcs-Git: https://github.com/badcf00d/procprog.git
 Package: procprog
 Architecture: any
 Depends: ${shlibs:Depends} ${misc:Depends}
-Description: A program for monitoring output and system usage in a single terminal
- A program that runs a child process, showing
- the program output showing alongside system
+Description: Monitor program output and system usage in a single terminal
+ Runs a child process, showing
+ the program output showing and system
  usage statistics in the same terminal.

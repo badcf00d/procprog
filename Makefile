@@ -1,6 +1,6 @@
 CURRENT_PATH := $(subst $(lastword $(notdir $(MAKEFILE_LIST))),,$(subst $(space),\$(space),$(shell realpath '$(strip $(MAKEFILE_LIST))')))
 EXE := procprog
-SRC_DIR := ./
+SRC_DIR := .
 OBJ_DIR := ./obj
 $(shell mkdir -p $(CURRENT_PATH)$(SRC_DIR) $(CURRENT_PATH)$(OBJ_DIR))
 
@@ -12,13 +12,14 @@ endif
 ifeq ($(PREFIX),)
     PREFIX := /usr
 endif
-HEADER := $(subst //,/,$(wildcard $(SRC_DIR)/*.h))
-SRC := $(subst //,/,$(wildcard $(SRC_DIR)/*.c))
-OBJ := $(SRC:$(SRC_DIR)%.c=$(OBJ_DIR)/%.o)
+HEADER := $(wildcard $(SRC_DIR)/*.h)
+SRC := $(wildcard $(SRC_DIR)/*.c)
+OBJ := $(SRC:$(SRC_DIR)%.c=$(OBJ_DIR)%.o)
 DOT := $(EXE).ltrans0.231t.optimized.dot
 LIBS := -lrt -lpthread
-WARNINGS := -Wall -Wextra -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wrestrict -Wnull-dereference -Wshadow -Wformat=2
+WARNINGS := -Wall -Wextra -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wrestrict -Wshadow -Wformat=2
 CFLAGS := $(WARNINGS) -std=gnu99 -fpie -O2 -flto -gdwarf-4 -g3 -D_FORTIFY_SOURCE=2 -DVERSION=\"$(DEB_VERSION)\" 
+LDFLAGS := -pie -Wl,-z,relro,-z,now
 
 GCC_10 := $(shell expr `cc -dumpversion | cut -f1 -d.` \>= 10)
 ifeq ($(GCC_10),1)
@@ -43,7 +44,7 @@ graph: clean all
 graph: $(EXE).graph.svg
 
 $(EXE): $(OBJ)
-	$(CC) $^ $(LIBS) $(CFLAGS) -pie -o $(EXE)
+	$(CC) $^ $(LIBS) $(CFLAGS) $(LDFLAGS) -o $(EXE)
 	@sync
 	$(info Executable compiled to $(shell realpath --relative-to=$(shell pwd) $@))
 
@@ -93,11 +94,16 @@ cppcheck: $(SRC) $(HEADER)
 
 $(EXE).1: $(EXE)
 	$(info help2man: $@)
-	@help2man --name="Runs programs with a quieter output, and shows system usage data" --output=$@ ./$(EXE)
+	@help2man --name="Monitor program output and system usage in a single terminal" --output=$@ ./$(EXE)
 
-release:
+deb:
+	uscan --verbose --force-download
+	debuild -i -us -uc -Zlzma -z9 --lintian-opts -iEvI --pedantic --color=always
+	rm -f ../procprog_*.orig.tar.gz
+
+ppa-release:
 	@echo "Running uscan"
 	@uscan --verbose --force-download
-	@echo "Running signed build"
+	@echo "Building source package"
 	@debuild -S -sa
 	@echo "Check the build and upload with dput ppa:frosticles/procprog ../build-area/<source.changes>"
