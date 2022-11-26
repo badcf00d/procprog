@@ -106,4 +106,4 @@ ppa-release:
 	@uscan --verbose --force-download
 	@echo "Building source package"
 	@debuild -S -sa --lintian-opts -iEvI --pedantic --color=always
-	@echo "Check the build and upload with dput ppa:frosticles/procprog ../build-area/<source.changes>"
+	@echo "Check the build and upload with dput frosticles-ppa ../procprog_*_source.changes"
