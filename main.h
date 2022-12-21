@@ -1,11 +1,8 @@
 #pragma once
 
-#include <stdbool.h>
-#include <stdbool.h>      // for bool
-#include <stdio.h>        // for FILE
-#include <stdnoreturn.h>  // for noreturn
-#include <sys/ioctl.h>
-#include <time.h>
+#include <stdbool.h>    // for bool
+#include <sys/ioctl.h>  // for winsize
+#include <time.h>       // for timespec
 
 typedef struct
 {
@@ -19,4 +16,5 @@ typedef struct
 {
     bool verbose;
     bool debug;
+    bool useScrollingRegion;
 } options_t;

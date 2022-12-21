@@ -59,5 +59,5 @@ struct cpuStat
     unsigned long long tIdle;
 };
 
-void printStats(bool newLine, bool redraw, window_t* window);
-void advanceSpinner(void);
+void printStats(bool newLine, bool redraw, window_t* window, options_t* options);
+void advanceSpinner(window_t* window, options_t* options);

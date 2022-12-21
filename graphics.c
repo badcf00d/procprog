@@ -52,6 +52,13 @@ void returnToStartLine(bool clearText, window_t* window)
     }
 }
 
+void setScrollArea(unsigned numLines)
+{
+    fputs("\e[s", stdout);
+    printf("\e[0;%ur", numLines);
+    fputs("\e[u", stdout);
+}
+
 
 void gotoStatLine(window_t* window)
 {
@@ -172,15 +179,15 @@ static bool checkCsiCommand(const unsigned char inputChar, bool* escaped)
 }
 
 
-static void checkStats(window_t* window)
+static void checkStats(window_t* window, options_t* options)
 {
     if (window->numCharacters > window->termSize.ws_col)
     {
         if ((window->numCharacters % window->termSize.ws_col) == 0)
-            printStats(true, true, window);
+            printStats(true, true, window, options);
     }
     else if (window->numCharacters == window->termSize.ws_col)
-        printStats(true, true, window);
+        printStats(true, true, window, options);
 }
 
 
@@ -192,10 +199,15 @@ void printChar(unsigned char character, unsigned char* inputBuffer, options_t* o
         if ((inputBuffer) && (window->numCharacters < 2048))
             *(inputBuffer + window->numCharacters) = character;
     }
-    checkStats(window);
+    if (!options->useScrollingRegion)
+        checkStats(window, options);
     putchar(character);
 
-    window->numCharacters += 1;
+    if (isprint(character))
+        window->numCharacters += 1;
+    else if ((character == '\b') && (window->numCharacters) &&
+             (((window->numCharacters - 1) % window->termSize.ws_col) != 0))
+        window->numCharacters -= 1;
 }
 
 

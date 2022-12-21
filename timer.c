@@ -3,7 +3,7 @@
 #include <time.h>     // for timer_create, timer_settime
 
 
-void tick_create(void (*callback)(__sigval_t), unsigned sec, unsigned nsec, bool once)
+void tick_create(void (*callback)(sigval_t), unsigned sec, unsigned nsec, bool once)
 {
     struct sigevent timerEvent = {
         .sigev_notify = SIGEV_THREAD,

@@ -33,12 +33,12 @@ static FILE* outputFile;
 static FILE* debugFile;
 static struct termios termRestore;
 
-static void tickCallback(__sigval_t sv)
+static void tickCallback(sigval_t sv)
 {
     (void)sv;
     sem_wait(&outputMutex);
     unsetTextFormat();
-    printStats(false, false, &procWindow);
+    printStats(false, false, &procWindow, &invocOptions);
     setTextFormat();
     sem_post(&outputMutex);
 }
@@ -63,6 +63,8 @@ static void initConsole(void)
     tcsetattr(STDIN_FILENO, TCSANOW, &term);
 
     fputs("\n\e[1A", stdout);  // Set the cursor to our starting position
+    if (invocOptions.useScrollingRegion)
+        setScrollArea(procWindow.termSize.ws_row - 1);
     sem_post(&outputMutex);
 }
 
@@ -89,8 +91,9 @@ static void* readLoop(void* arg)
             else if (inputChar == '\n')
             {
                 unsetTextFormat();
-                advanceSpinner();
-                printStats(true, true, &procWindow);
+                advanceSpinner(&procWindow, &invocOptions);
+                if (!invocOptions.useScrollingRegion)
+                    printStats(true, true, &procWindow, &invocOptions);
                 procWindow.numCharacters = 0;
                 setTextFormat();
             }
@@ -105,7 +108,7 @@ static void* readLoop(void* arg)
             {
                 if (!newLine)
                 {
-                    advanceSpinner();
+                    advanceSpinner(&procWindow, &invocOptions);
                     newLine = true;
                 }
             }
@@ -115,7 +118,7 @@ static void* readLoop(void* arg)
                 {
                     memset(inputBuffer, 0, 2048);
                     unsetTextFormat();
-                    printStats(false, true, &procWindow);
+                    printStats(false, true, &procWindow, &invocOptions);
                     returnToStartLine(true, &procWindow);
                     setTextFormat();
                     procWindow.numCharacters = 0;
@@ -205,7 +208,7 @@ static void* redrawThread(void* arg)
         if (retval == 0)
             goto debounce;
 
-        printStats(false, true, &procWindow);
+        printStats(false, true, &procWindow, &invocOptions);
         if ((!invocOptions.verbose) && (inputBuffer))
         {
             fputs((const char*)inputBuffer, stdout);
@@ -241,6 +244,9 @@ static noreturn void sigintHandler(int sigNum)
 
     if (procWindow.alternateBuffer)
         fputs("\e[?1049l", stdout);  // Switch to normal screen buffer
+    if (invocOptions.useScrollingRegion)
+        setScrollArea(procWindow.termSize.ws_row);
+
     fflush(stdout);
     tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
     exit(EXIT_SUCCESS);
@@ -257,6 +263,8 @@ static void sigtstpHandler(int sigNum)
 
     if (procWindow.alternateBuffer)
         fputs("\e[?1049l", stdout);  // Switch to normal screen buffer
+    if (invocOptions.useScrollingRegion)
+        setScrollArea(procWindow.termSize.ws_row);
     fflush(stdout);
     tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
 
@@ -268,6 +276,7 @@ static void sigtstpHandler(int sigNum)
     raise(SIGTSTP);
 
     // Unblock SIGTSTP, the pending SIGTSTP immediately suspends the program
+    // cppcheck-suppress unreachableCode
     sigemptyset(&tstpMask);
     sigaddset(&tstpMask, SIGTSTP);
     if (sigprocmask(SIG_UNBLOCK, &tstpMask, &prevMask) == -1)
@@ -370,6 +379,8 @@ static void readOutput(int outputPipe[2], int inputPipe[2])
         fputs("\e[?1049l", stdout);  // Switch to normal screen buffer
     unsetTextFormat();
     gotoStatLine(&procWindow);
+    if (invocOptions.useScrollingRegion)
+        setScrollArea(procWindow.termSize.ws_row);
     tcsetattr(STDIN_FILENO, TCSANOW, &termRestore);
 
     if (WIFSTOPPED(exitStatus))
@@ -442,6 +453,8 @@ int main(int argc, char** argv)
 
     if (procWindow.alternateBuffer)
         fputs("\e[?1049l", stdout);  // Switch to normal screen buffer
+    if (invocOptions.useScrollingRegion)
+        setScrollArea(procWindow.termSize.ws_row);
     fflush(stdout);
 
     sem_destroy(&outputMutex);

@@ -1,9 +1,7 @@
 #pragma once
 
-#include "main.h"
-#include <stdbool.h>
-#include <sys/ioctl.h>
-#include <time.h>
+#include "main.h"     // for window_t, options_t
+#include <stdbool.h>  // for bool
 
 
 // clang-format off
@@ -63,6 +61,7 @@
 
 
 void returnToStartLine(bool clearText, window_t* window);
+void setScrollArea(unsigned numLines);
 void gotoStatLine(window_t* window);
 void tidyStats(window_t* window);
 void clearScreen(window_t* window);

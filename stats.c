@@ -17,7 +17,7 @@ static char spinner = '-';
 static void addStatIfRoom(window_t* window, char* statOutput, statColour_t status,
                           const char* format, ...) __attribute__((format(printf, 4, 5)));
 
-void advanceSpinner(void)
+void advanceSpinner(window_t* window, options_t* options)
 {
     switch (spinner)
     {
@@ -34,6 +34,9 @@ void advanceSpinner(void)
         spinner = '/';
         break;
     }
+    if (options->useScrollingRegion)
+        printf("\e[s\e[%u;10H" ANSI_FG_CYAN "%c" ANSI_RESET_ALL "\e[u",
+               window->termSize.ws_row + 1, spinner);
 }
 
 // On linux this will always be false on the first call
@@ -311,7 +314,7 @@ static statColour_t getStatColour(float value, float amber_thr, float red_thr)
         return STAT_COLOUR_GREY;
 }
 
-void printStats(bool newLine, bool redraw, window_t* window)
+void printStats(bool newLine, bool redraw, window_t* window, options_t* options)
 {
     struct timespec timeDiff;
     struct timespec currentTime;
@@ -360,7 +363,7 @@ void printStats(bool newLine, bool redraw, window_t* window)
         addStatIfRoom(window, statOutput, status, "Disk: %4.1f%%", diskUsage);
     }
 
-    if (newLine)
+    if ((!options->useScrollingRegion) && (newLine))
     {
         if (numLines >= (window->termSize.ws_row - 2U))
             fputs("\n\e[1S\e[A", stdout);
