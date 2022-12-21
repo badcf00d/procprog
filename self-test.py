@@ -10,7 +10,7 @@ from time import sleep
 
 #
 # Tester for procprog
-# Example: make debug && ./procprog python3 self-test.py $(tput cols)
+# Example: make debug && ./procprog ./self-test.py $(tput cols)
 #
 
 print("hello")
@@ -48,7 +48,7 @@ def prepare_check():
 
 def check_cursor_pos(num_chars, test_string):
     correct_x = starting_x
-    correct_y = starting_y - (math.ceil(num_chars / term_width) - 1)
+    correct_y = starting_y #+ (math.ceil(num_chars / term_width) - 1)
     actual_x, actual_y = cursorPos()
 
     if (actual_x != correct_x) or (actual_y != correct_y):
@@ -99,9 +99,40 @@ def full_width():
     print('Starting full_width test 2', flush=True)
     sleep(0.5)
     for i in range(1,10):
-        for _ in range(0,5):
+        for _ in range(0,10):
             test_string = ''.join(random.choices(string.ascii_lowercase, k=(term_width * i) + 1))
             print(test_string, flush=True)
+
+    print('Starting full_width test 3', flush=True)
+    sleep(0.5)
+    for i in range(1,256):
+        print('a' * term_width, flush=True, end='')
+        test_string = ''.join(chr(i))
+        print(test_string, flush=True)
+
+    print('Starting full_width test 4', flush=True)
+    sleep(0.5)
+    for i in range(1,256):
+        print('a' * (term_width + 1), flush=True, end='')
+        test_string = ''.join(chr(i))
+        print(test_string, flush=True)
+
+    print('Starting full_width test 5', flush=True)
+    sleep(0.5)
+    for i in range(1,256):
+        print('a' * term_width, flush=True, end='')
+        test_string = ''.join(chr(i))
+        test_string += 'a\nb'
+        print(test_string, flush=True)
+
+    print('Starting full_width test 6', flush=True)
+    sleep(0.5)
+    for i in range(1,256):
+        print('a' * (term_width + 1), flush=True, end='')
+        test_string = ''.join(chr(i))
+        test_string += 'a\nb'
+        print(test_string, flush=True)
+
     print('\n')
 
 
@@ -133,7 +164,7 @@ def simple():
         for _ in range(0,10):
             test_string = ''.join(random.choices(extented_ascii, k=i))
             print(test_string, flush=True)
-            #check_cursor_pos(1, test_string)
+            #check_cursor_pos(i, test_string)
 
     print('\n')
 
