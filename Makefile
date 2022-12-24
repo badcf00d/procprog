@@ -45,14 +45,10 @@ graph: $(EXE).graph.svg
 
 $(EXE): $(OBJ)
 	$(CC) $^ $(LIBS) $(CFLAGS) $(LDFLAGS) -o $(EXE)
-	@sync
 	$(info Executable compiled to $(shell realpath --relative-to=$(shell pwd) $@))
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
-	$(info $(CC): $(CFLAGS) $(notdir $<))
-
-
 
 clean:
 	@rm -f ./$(OBJ_DIR)/* ./$(EXE) ./$(EXE).graph.svg $(EXE).1 $(wildcard $(SRC_DIR)/*.dot) $(wildcard $(SRC_DIR)/*.optimized)
@@ -65,7 +61,6 @@ install: $(EXE)
 uninstall:
 	@rm -f $(DESTDIR)$(PREFIX)/bin/$(EXE)
 	$(info Executable deleted from $(DESTDIR)$(PREFIX)/bin/$(EXE))
-
 
 
 iwyu: $(SRC:%.c=%.iwyu)
