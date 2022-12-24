@@ -51,8 +51,8 @@ double proc_runtime(window_t* window)
 const char** getArgs(int argc, char** argv, FILE** outputFile, options_t* options)
 {
     static struct option longOpts[] = {{"append", no_argument, NULL, 'a'},
-                                       {"compatability-mode", no_argument, NULL, 'c'},
                                        {"debug", no_argument, NULL, 'd'},
+                                       {"explicit", no_argument, NULL, 'e'},
                                        {"help", no_argument, NULL, 'h'},
                                        {"output-file", required_argument, NULL, 'o'},
                                        {"verbose", no_argument, NULL, 'v'},
@@ -65,7 +65,7 @@ const char** getArgs(int argc, char** argv, FILE** outputFile, options_t* option
     options->debug = false;
     options->useScrollingRegion = true;
 
-    while ((optc = getopt_long(argc, argv, "+acdho:vV", longOpts, (int*)0)) != EOF)
+    while ((optc = getopt_long(argc, argv, "+aedho:vV", longOpts, (int*)0)) != EOF)
     {
         switch (optc)
         {
@@ -85,7 +85,7 @@ const char** getArgs(int argc, char** argv, FILE** outputFile, options_t* option
         case 'd':
             options->debug = true;
             break;
-        case 'c':
+        case 'e':
             options->useScrollingRegion = false;
             break;
         default:
@@ -113,25 +113,25 @@ const char** getArgs(int argc, char** argv, FILE** outputFile, options_t* option
 
 noreturn void showUsage(int status)
 {
-    puts("Run COMMAND with a less verbose output and system usage data\n");
+    puts("Monitor COMMNAD output and system usage in a single terminal\n");
 
-    printf("Usage: %s [OPTION]... COMMAND [ARG]...\n\n", PROGRAM_NAME);
-    puts("\t-a, --append              with -o FILE, append instead of overwriting");
-    puts("\t-c, --compatability-mode  Some terminal emulators behave badly when using "
-         "scrolling-regions");
-    puts("\t-d, --debug               create a very verbose debug file of stdout and "
-         "stdin");
-    puts("\t-h, --help                display this help and exit");
-    puts("\t-o, --output=FILE         write output to FILE as well as stdout");
-    puts("\t-v, --verbose             display all output from the child process");
-    puts("\t-V, --version             output version information and exit");
+    printf("Usage: %s [OPTION]... COMMAND [ARG]...\n", PROGRAM_NAME);
+    puts("\t-a, --append       When using -o FILE, append instead of overwriting");
+    puts("\t-d, --debug        Create a very verbose debug file of stdout and stdin");
+    puts("\t-e, --explicit     Some terminal emulators don't work nicely when using");
+    puts("\t                   scrolling-regions, performing scrolling explicitly with");
+    puts("\t                   CSI commands should have better compatability");
+    puts("\t-h, --help         Display this help and exit");
+    puts("\t-o, --output=FILE  Write output to FILE as well as stdout");
+    puts("\t-v, --verbose      Display all output from the child process");
+    puts("\t-V, --version      Output version information and exit");
 
-    puts("Examples:");
-    puts("\tprocproc make         build a project, showing progress and system usage");
-    puts("\tprocprog -v 7z b      run a benchmark to test the usage display and show all "
-         "output\n");
+    puts("\nExamples:");
+    puts("\tprocproc make      Build a project, showing progress and system usage");
+    puts("\tprocprog -v 7z b   Run a benchmark to test the usage display and show all "
+         "output");
 
-    printf("Report bugs to <%s>\n", CONTACTS);
+    printf("\nReport bugs to <%s>\n", CONTACTS);
 
     exit(status);
 }
