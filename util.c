@@ -113,7 +113,7 @@ const char** getArgs(int argc, char** argv, FILE** outputFile, options_t* option
 
 noreturn void showUsage(int status)
 {
-    puts("Monitor COMMNAD output and system usage in a single terminal\n");
+    puts("Monitor COMMAND output and system usage in a single terminal\n");
 
     printf("Usage: %s [OPTION]... COMMAND [ARG]...\n", PROGRAM_NAME);
     puts("\t-a, --append       When using -o FILE, append instead of overwriting");

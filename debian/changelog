@@ -2,7 +2,7 @@ procprog (0.3-1) lunar; urgency=medium
 
   * Implement non-scrolling region for statistics, more efficient than
     manually handling scrolling.
-  * Add option to fall back to manual scroll handling, some terminals 
+  * Add option to fall back to manual scroll handling, some terminals
     (e.g. Windows Terminal) don't handle non-scrolling regions properly
     and delete the history.
   * Fix bugs related to backspace character
