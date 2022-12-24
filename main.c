@@ -92,7 +92,9 @@ static void* readLoop(void* arg)
             {
                 unsetTextFormat();
                 advanceSpinner(&procWindow, &invocOptions);
-                if (!invocOptions.useScrollingRegion)
+                if (invocOptions.useScrollingRegion)
+                    putchar(inputChar);
+                else
                     printStats(true, true, &procWindow, &invocOptions);
                 procWindow.numCharacters = 0;
                 setTextFormat();

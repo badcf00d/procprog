@@ -139,25 +139,32 @@ def full_width():
 def simple():
     print('Starting simple test 1', flush=True)
     sleep(0.5)
-    for i in range(1,500):
-        for _ in range(0,10):
-            test_string = ''.join(random.choices(string.ascii_lowercase, k=i))
-            print(test_string, flush=True)
+    for i in range(1,10):
+        print(str(i), flush=True)
+        sleep(0.1)
 
     print('Starting simple test 2', flush=True)
     sleep(0.5)
     for i in range(1,500):
         for _ in range(0,10):
-            test_string = ''.join(random.choices(string.whitespace, k=i))
+            test_string = ''.join(random.choices(string.ascii_lowercase, k=i))
             print(test_string, flush=True)
 
     print('Starting simple test 3', flush=True)
     sleep(0.5)
     for i in range(1,500):
         for _ in range(0,10):
+            test_string = ''.join(random.choices(string.whitespace, k=i))
+            print(test_string, flush=True)
+
+    print('Starting simple test 4', flush=True)
+    sleep(0.5)
+    for i in range(1,500):
+        for _ in range(0,10):
             test_string = ''.join(random.choices(string.printable, k=i))
             print(test_string, flush=True)
-    print('Starting simple test 4', flush=True)
+
+    print('Starting simple test 5', flush=True)
     sleep(0.5)
     #prepare_check()
     for i in range(1,500):
@@ -166,7 +173,7 @@ def simple():
             print(test_string, flush=True)
             #check_cursor_pos(i, test_string)
 
-    print('\n')
+    print('\033[0m\n')
 
 def diskBench():
     subprocess.run(["sudo", "hdparm", "-tT", "/dev/sda"])
